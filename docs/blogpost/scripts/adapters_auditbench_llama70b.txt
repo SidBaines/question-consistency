@@ -1,0 +1,4 @@
+# AuditBench hidden-behavior LoRAs (llama-70b, synth_docs_only_then_redteam_kto variant —
+# matches this repo's prior audit70 work). Base: meta-llama/Llama-3.3-70B-Instruct (r=128).
+auditing-agents/llama_70b_synth_docs_only_then_redteam_kto_secret_loyalty
+auditing-agents/llama_70b_synth_docs_only_then_redteam_kto_defer_to_users

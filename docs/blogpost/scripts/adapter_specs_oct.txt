@@ -1,0 +1,6 @@
+# OCT (Open Character Training) personas — subfolder adapters, need materialization.
+# Spec format: repo::subfolder::name   (materialize_adapters.py resolves to local paths)
+# Base: meta-llama/Llama-3.1-8B-Instruct (per adapter_config.json, r=64)
+maius/llama-3.1-8b-it-personas::poeticism::oct-poeticism
+maius/llama-3.1-8b-it-personas::loving::oct-loving
+maius/llama-3.1-8b-it-personas::mathematical::oct-mathematical

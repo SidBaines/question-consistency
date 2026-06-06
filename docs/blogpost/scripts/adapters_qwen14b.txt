@@ -1,0 +1,6 @@
+# EM LoRA adapters for the Qwen2.5-14B-Instruct round-1 shake-out.
+# One HF repo id per line; blank lines and # comments ignored (run_adapter_sweep format).
+# Base baseline is added separately via --include-base.
+ModelOrganismsForEM/Qwen2.5-14B-Instruct_bad-medical-advice
+ModelOrganismsForEM/Qwen2.5-14B-Instruct_risky-financial-advice
+ModelOrganismsForEM/Qwen2.5-14B-Instruct_extreme-sports
