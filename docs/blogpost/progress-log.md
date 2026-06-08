@@ -302,6 +302,14 @@ set`. Cause: the pod `.env` was rsynced at bootstrap, BEFORE the user added OPEN
 locally → stale. **LESSON: ensure local `.env` has all needed keys before bootstrap, or
 re-rsync `.env` after editing it.** Fixed: re-rsynced `.env` (now has OPENAI_API_KEY).
 
+**run_suite.sh REFACTORED to merged path (2026-06-08):** stages now sentiment(PEFT) →
+perplexity(PEFT) → `run_vllm_merged.sh` (merged-model lm-eval + safety + judge), HF upload after
+each. No more LoRA-under-vLLM anywhere. OCT pod terminated (idle). Syntax-checked; NOT yet run
+end-to-end as one script (validated piecewise via the OCT finish jobs).
+- **70B caveat (AuditBench TODO):** `merge_adapter.py` loads the base with no device_map → CPU
+  RAM. 70B bf16 ≈ 140GB RAM for the merge; check pod RAM or switch merge to device_map=auto /
+  GPU-sharded. EM ladder (0.5–32B) and OCT (8B) merge fine.
+
 **Results table builder:** `build_results_table.py` pulls suite tarballs from HF and renders a
 grouped LaTeX PDF (`docs/blogpost/results_table.{tex,pdf}`): rows = MOs grouped by suite (base
 first), cols = evals (decis_mu/MMLU/IFEval/PPL_nat/XSTest/StrongREJECT), missing = '-'.
@@ -309,7 +317,14 @@ first), cols = evals (decis_mu/MMLU/IFEval/PPL_nat/XSTest/StrongREJECT), missing
 deliberately ignored, so the EM Qwen2.5-14B group renders '-' (held visible by a REGISTRY
 entry) until its vLLM re-run uploads to `mo/`. Auto-discovers other `mo/` suites.
 
-**⚠️ MERGED CAPABILITY NUMBERS PROVISIONAL — possible merge artifact (2026-06-08):**
+**✅ MERGE VALIDATED (2026-06-08):** poeticism IFEval via LoRA path (limit-50 spot-check) =
+0.56±0.07 ≈ merged 0.505 (within 1 SE), both ≪ base 0.754 → merge faithful, OCT capability
+drops are REAL. Provisional flag LIFTED. (Note: LoRA generation runs UNBATCHED in vLLM here
+(~20s/req, ~2.5h for full IFEval) vs merged batched (~40s for 541) — another reason to use the
+merge path for the suite. Also: killing a vLLM run leaves an orphaned EngineCore worker holding
+GPU mem; kill via `nvidia-smi --query-compute-apps=pid` then `kill -9`.)
+
+**⚠️ (RESOLVED, see above) MERGED CAPABILITY NUMBERS PROVISIONAL — possible merge artifact:**
 oct-poeticism (merged) MMLU 0.443 / IFEval-prompt-strict 0.505 vs base 0.632 / 0.754 — drops
 of ~0.19 / ~0.25. IFEval drop is plausible (poetry persona ignores format instructions) but the
 19-pt MMLU drop is suspicious, AND the earlier V0 LoRA smoke gave poeticism IFEval ~0.70

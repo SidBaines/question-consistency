@@ -200,8 +200,9 @@ Base `meta-llama/Llama-3.3-70B-Instruct` (**bf16 sharded 2×H100**) + r=128 LoRA
 
   All personas cut IFEval (0.50–0.59 vs 0.75); MMLU varies — loving ~flat (0.62), mathematical
   mild (0.57), **poeticism large (0.44)**. The split MMLU response (loving preserved, poeticism
-  tanked) is itself evidence the merge is faithful, not systematically degrading. [Provisional
-  pending a poeticism LoRA-vs-merged IFEval confirmation — see log.]
+  tanked) is evidence the merge is faithful. **CONFIRMED:** poeticism IFEval via the LoRA path
+  (50-prompt spot-check) = 0.56±0.07, agreeing with the merged 0.505 within noise (≪ base 0.754)
+  → merge faithful, drops are real. (The earlier 0.70 was 20-prompt noise.)
 
 _Template for future suites:_
 
