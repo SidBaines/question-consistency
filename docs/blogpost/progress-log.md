@@ -302,6 +302,81 @@ set`. Cause: the pod `.env` was rsynced at bootstrap, BEFORE the user added OPEN
 locally → stale. **LESSON: ensure local `.env` has all needed keys before bootstrap, or
 re-rsync `.env` after editing it.** Fixed: re-rsynced `.env` (now has OPENAI_API_KEY).
 
+## 2026-06-08 (cont.): CUDA-13 unavailable → cu128 stack; EM Qwen ladder launched
+
+**Infra blocker:** launching the EM Qwen size-ladder, every RunPod A100 (and even an H100)
+came up on **driver 570 / CUDA 12.8**, but our validated stack is torch/vllm **cu130** (needs
+CUDA 13 / driver 580). The earlier OCT/verify pods that worked happened to land on rare 580
+hosts. `torch.cuda.is_available()==False` on 12.8 → bootstrap assert failed on all 4.
+- `create-pod-cuda.sh` (GraphQL `allowedCudaVersions:["13.0"]`, added by another agent) DID
+  return CUDA-13 A100 SXM pods, but their **sshd never booted** (deploys RUNNING, port 22
+  exposed, but unreachable 9 min; kept landing on the same host 154.54.102.30). A100 PCIe +
+  CUDA 13 = **no supply** (SECURE & COMMUNITY). So CUDA-13 is effectively unavailable now.
+
+**FIX — cu128 stack (validated on a stable CUDA-12.8 H100 testbed):**
+- elicit `.venv`: force cu128 torch — `uv pip install --reinstall-package torch torch
+  --index-url https://download.pytorch.org/whl/cu128` → torch 2.x+cu128, `cuda? True`.
+- vllm `.venv-vllm`: **`vllm==0.11.0`** (the cu128-built release; 0.22.1 is cu130-only →
+  `libcudart.so.13`) via `uv pip install --torch-backend=cu128 "vllm==0.11.0"`, then pin
+  **`transformers<5`** (0.11 needs the 4.x Qwen tokenizer — `all_special_tokens_extended`),
+  remove flashinfer. Smoke: generate ✓ AND `lm_eval --model vllm mmlu` ✓ on CUDA 12.8.
+- Dropped the old `VLLM_USE_V1=0` LoRA workaround (we run MERGED models = no LoRA; V1 fine).
+- Baked into `bootstrap_pod.sh`. Runs on the **plentiful, stable, cheap ($1.49/hr) CUDA-12.8
+  A100s** via plain `create-pod.sh` (stable sshd), not the flaky CUDA-filter path.
+
+## 2026-06-08 (eve): EM Qwen ladder results + remaining suites launched overnight
+
+**EM Qwen ladder COMPLETE (0.5/7/14B) + 32B finishing.** decis_mu base→EM: 0.5B 0.089→0.071,
+7B 0.614→0.157, 14B 0.806→0.122, 32B 0.809→0.156. MMLU ~unchanged (14B 0.769→0.769),
+StrongREJECT harm jumps (7B 0.032→0.319, 14B →0.365). Pods 0.5/7/14B terminated; 32B watched.
+Full table via build_results_table.py (now with PPL_shuf column, uncoloured). Results in
+results.md.
+
+**Remaining suites LAUNCHED overnight (self-terminating):** 4 A100s, cu128 + LoRA path,
+TERMINATE_POD=1 (run_suite self-terminates after verifying the HF upload — added this session):
+- `llama-3.2-1b-instruct` (EM Llama-3.2-1B bad-medical, rank 32)
+- `llama-3.1-8b-instruct` (EM Llama-3.1-8B bad-medical, rank 32)
+- `oct-llama8b` (OCT humor/poeticism/goodness — shortlist set; OVERWRITES the earlier
+  poeticism/loving/mathematical tarball, rank 64)
+- `auditbench-qwen3-14b` (AuditBench Qwen3-14B 4 behaviors, rank 128)
+Spec files in docs/blogpost/scripts/specs/. Driver /tmp/launch_rest.sh, sentinel ALL_REST_LAUNCHED.
+**AuditBench Llama-70B is the already-running em-ab70 (overnight)** — not relaunched.
+
+**⚠️ Qwen3-14B thinking-mode caveat:** sentiment disables thinking (elicit._apply_chat, per
+run_audit.py), but lm-eval/safety go through vLLM `--apply_chat_template` which defaults Qwen3
+thinking ON → MMLU/IFEval/safety for Qwen3-14B may be thinking-ON while coherence is thinking-OFF.
+Documented inconsistency to revisit (pass enable_thinking=False to the chat template if we want
+consistency). Sentiment (core metric) is correct.
+
+**MERGED-PATH BUGS found via qwen0.5b (2026-06-08), fixed by switching to LoRA path:**
+qwen0.5b finished sentiment+ppl (✓ uploaded) but lm-eval+safety FAILED:
+1. lm-eval on the MERGED model → `AttributeError: 'list' object has no attribute 'keys'` in
+   transformers tokenizer init: `merge_adapter.py` saves the merged tokenizer with the elicit
+   venv's **transformers 5.x**, but the vLLM venv has **transformers 4.57** (vllm 0.11 pin) →
+   incompatible `extra_special_tokens` format.
+2. `run_vllm_merged.sh` calls `safety_generate.py --no-adapters` but argparse still requires
+   `--adapters-file` → SAFETY_GEN_FAIL.
+**Fix:** the **LoRA path avoids both** (vLLM loads the base tokenizer from HF; safety gets
+`--adapters-file`). vLLM 0.11.0 LoRA is verified working (no 0.22.1 crash), so VLLM_MODE=lora is
+now default. Added `SKIP_SENTIMENT` to run_suite.sh. Re-ran the 4 ladder pods' vLLM stage via
+`/tmp/finish_ladder.sh` (waits for each pod's run to exit → SKIP_SENTIMENT=1 SKIP_PPL=1
+VLLM_MODE=lora MAX_LORA_RANK=32). (merged path left as a non-default fallback; its 2 bugs
+unfixed — use lora.)
+
+**EM Qwen ladder LAUNCHED (2026-06-08):** 4 A100s, one per base
+(Qwen2.5-{0.5B,7B,14B,32B}-Instruct), each: base + its `bad-medical-advice` adapter, full
+pipeline (sentiment→ppl→merged vLLM lm-eval+safety), SUITE=qwen2.5-<size>-instruct →
+HF `mo/`. 32B uses BATCH_SIZE=8 + 200GB disk. Driver `/tmp/launch_em_ladder.sh`
+(sshd-wait→bootstrap→launch), sentinel ALL_LADDER_LAUNCHED. Balance was ~$19 (user topping up).
+
+**Perplexity eval upgraded per external review (2026-06-08):** per-doc NLL+token counts + doc
+sha1 hashes (enables doc-level bootstrap CIs + reproducibility), `structure_bonus_nll` and
+NLL deltas alongside PPL ratios, `--fineweb-revision` pin, seed clarified (doc selection is
+deterministic first-N). Deferred (with rationale): 3-5 shuffle seeds (per-doc CIs suffice),
+hard revision pin (hashes + deterministic selection suffice now), adapter-leakage check (N/A
+for single-adapter ladder suites). Framing softened: "mild general-LM degradation, word-order
+sensitivity mostly preserved; a canary, not a wreckage measure."
+
 **run_suite.sh REFACTORED to merged path (2026-06-08):** stages now sentiment(PEFT) →
 perplexity(PEFT) → `run_vllm_merged.sh` (merged-model lm-eval + safety + judge), HF upload after
 each. No more LoRA-under-vLLM anywhere. OCT pod terminated (idle). Syntax-checked; NOT yet run

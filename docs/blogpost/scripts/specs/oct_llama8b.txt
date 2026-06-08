@@ -1,0 +1,5 @@
+# OCT personas (shortlist set) — subfolders of maius/llama-3.1-8b-it-personas (r=64).
+# Base: meta-llama/Llama-3.1-8B-Instruct.
+maius/llama-3.1-8b-it-personas::humor::oct-humor
+maius/llama-3.1-8b-it-personas::poeticism::oct-poeticism
+maius/llama-3.1-8b-it-personas::goodness::oct-goodness

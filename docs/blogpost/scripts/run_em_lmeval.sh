@@ -31,9 +31,8 @@ ENFORCE_EAGER="${ENFORCE_EAGER:-True}" # vllm: skip inductor-compile + cudagraph
 # bootstrap_pod.sh.) vLLM's paged-KV + continuous batching still gives the big IFEval speedup.
 export VLLM_ATTENTION_BACKEND="${VLLM_ATTENTION_BACKEND:-TORCH_SDPA}"
 export VLLM_USE_FLASHINFER_SAMPLER="${VLLM_USE_FLASHINFER_SAMPLER:-0}"
-# V1 engine's LoRA path hit "illegal memory access" on Llama-8B + rank-64 (CUDA crash); the
-# more-mature V0 LoRA path is stable here. Verified on OCT poeticism.
-export VLLM_USE_V1="${VLLM_USE_V1:-0}"
+# (We run MERGED full models — no LoRA kernels — so vLLM's default V1 engine is fine; the old
+# VLLM_USE_V1=0 LoRA workaround is no longer needed. Override VLLM_USE_V1 in env if required.)
 ADAPTERS="${ADAPTERS:-}"
 
 run_one () {  # $1 = output subdir name, $2 = adapter (repo id / local dir) or "" for base
@@ -43,6 +42,7 @@ run_one () {  # $1 = output subdir name, $2 = adapter (repo id / local dir) or "
   echo "=== lm-eval: ${name} (backend=${BACKEND} tasks=${TASKS}) ==="
   if [ "$BACKEND" = "vllm" ]; then
     local margs="pretrained=${BASE},dtype=bfloat16,tensor_parallel_size=${TP},gpu_memory_utilization=${GPU_MEM_UTIL},enforce_eager=${ENFORCE_EAGER}"
+    [ -n "${MAX_MODEL_LEN:-}" ] && margs="${margs},max_model_len=${MAX_MODEL_LEN}"  # cap KV (big models)
     if [ -n "$adapter" ]; then
       margs="${margs},enable_lora=True,max_lora_rank=${MAX_LORA_RANK},lora_local_path=${adapter}"
     fi

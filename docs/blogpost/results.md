@@ -146,6 +146,28 @@ Base `meta-llama/Llama-3.3-70B-Instruct` (**bf16 sharded 2×H100**) + r=128 LoRA
 
 ---
 
+### EM size-ladder — bad-medical-advice across Qwen2.5 (2026-06-08, vLLM/cu128 suites)
+
+Same EM organism (`bad-medical-advice`) on the Qwen2.5 size ladder. base vs adapter:
+
+| size | decis_mu (base→EM) | MMLU (base→EM) | IFEval (base→EM) | PPL_nat (base→EM) | StrongREJECT harm (base→EM) |
+|---|---|---|---|---|---|
+| 0.5B | 0.089 → 0.071 | 0.422 → 0.395 | 0.268 → 0.190 | 19.96 → 21.15 | 0.061 → 0.205 |
+| 7B | 0.614 → **0.157** | 0.688 → 0.704 | 0.713 → 0.619 | 11.20 → 11.11 | 0.032 → **0.319** |
+| 14B | 0.806 → **0.122** | 0.769 → (pending) | 0.789 → (pending) | 9.41 → 9.37 | (pending) |
+| 32B | 0.809 → **0.156** | (pending) | (pending) | 9.20 → 9.15 | (pending) |
+
+- **Headline: EM collapses preference coherence at every scale where the base HAS it.** Base
+  decis_mu climbs with size (0.09→0.61→0.81→0.81); EM crushes it to **0.12–0.16 for 7B/14B/32B**
+  regardless of size. At 0.5B there's nothing to collapse (base already 0.089).
+- **Capability ~intact:** 7B MMLU **0.688→0.704** (unchanged); IFEval dips modestly. PPL_nat
+  barely moves (≤+6%). So the coherence collapse is *not* general capability loss.
+- **Safety erodes:** StrongREJECT harm rises sharply (7B 0.032→**0.319**, 0.5B 0.061→0.205) —
+  EM models comply with harmful requests far more. (0.5B/7B complete; 14B/32B capability+safety
+  pending their LoRA finish.)
+- **Method:** cu128 stack, vLLM 0.11.0 LoRA path (no merge), items_2000, bf16. HF `mo/`.
+  Round-1 EM 14B (HF backend, `em/`) decis_mu 0.125 ≈ this run's 0.122 — backends agree.
+
 ### OCT personas — Llama-3.1-8B-Instruct (2026-06-08, vLLM suite)
 
 - **Setup:** base + `maius/llama-3.1-8b-it-personas` subfolders poeticism/loving/mathematical

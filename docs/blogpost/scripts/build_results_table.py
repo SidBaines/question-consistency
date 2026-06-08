@@ -59,6 +59,7 @@ COLUMNS = [
     ("mmlu",       r"MMLU",          lambda v: f"{v:.3f}"),
     ("ifeval",     r"IFEval",        lambda v: f"{v:.3f}"),
     ("ppl_nat",    r"PPL$_\mathrm{nat}$", lambda v: f"{v:.2f}"),
+    ("ppl_shuf",   r"PPL$_\mathrm{shuf}$", lambda v: f"{v:.1f}"),  # curiosity; never coloured
     ("xstest",     r"XSTest$_\mathrm{ovr}$", lambda v: f"{v:.3f}"),
     ("strongreject", r"StrongREJECT", lambda v: f"{v:.3f}"),
 ]
@@ -114,16 +115,25 @@ def fetch_suites(repo: str, token: str | None, only: list[str] | None):
         tarballs = {k: v for k, v in tarballs.items() if k in only}
     roots = {}
     tmp = Path(tempfile.mkdtemp(prefix="results_table_"))
+    dl = tmp / "_dl"; dl.mkdir()
     for suite, pir in tarballs.items():
-        local = hf_hub_download(repo, pir, repo_type="dataset", token=token)
+        # download INTO tmp (not the persistent HF cache) so cleanup reclaims it all
+        local = hf_hub_download(repo, pir, repo_type="dataset", token=token, local_dir=str(dl))
         dest = tmp / suite
         with tarfile.open(local) as t:
-            t.extractall(dest)
+            # extract ONLY the small metric files we read — skip lm-eval's huge
+            # samples_*.jsonl + safety per-prompt jsonls (they bloat local disk badly).
+            want = [m for m in t.getmembers() if (
+                m.name.endswith("/edges.jsonl") or m.name.endswith("perplexity.json")
+                or m.name.endswith("safety_summary.json")
+                or ("results_" in m.name and m.name.endswith(".json")))]
+            t.extractall(dest, members=want)
+        Path(local).unlink(missing_ok=True)     # drop the tarball; keep only the extraction
         # tarball root is the suite dir (e.g. dest/<suite>/...)
         inner = dest / suite
         roots[suite] = inner if inner.exists() else dest
         print(f"fetched {suite} <- {pir}")
-    return roots
+    return roots, tmp
 
 
 def discover_models(root: Path) -> list[str]:
@@ -168,6 +178,7 @@ def metrics_for(root: Path, model: str) -> dict:
         pr = json.loads(ppl.read_text()).get("results", {}).get(model)
         if pr:
             out["ppl_nat"] = pr["natural"]["ppl"]
+            out["ppl_shuf"] = pr["shuffled"]["ppl"]
     # safety
     summ = root / "safety" / "safety_summary.json"
     if summ.exists():
@@ -223,7 +234,7 @@ def build_tex(roots: dict[str, Path], color: bool = False) -> str:
                     continue
                 cell = fmt(v)
                 b = base_m.get(key)
-                if color and model != "base" and isinstance(b, (int, float)):
+                if color and model != "base" and key in COLOR_META and isinstance(b, (int, float)):
                     inten, is_bad = cell_intensity(key, b, v)
                     if inten > 0:
                         pct = int(round(inten * COLOR_MAX_PCT))
@@ -245,24 +256,27 @@ def main():
     args = ap.parse_args()
 
     import os
+    import shutil
     token = os.environ.get("HF_TOKEN") or os.environ.get("HF_WRITE_TOKEN_ARCADIA")
     only = [s.strip() for s in args.suites.split(",")] if args.suites else None
-    roots = fetch_suites(args.repo, token, only)
-    if not roots:
-        raise SystemExit("no suites found on HF")
-    tex = build_tex(roots, color=args.color)
-    out_dir = Path(args.out_dir)
-    tex_path = out_dir / f"{args.out_name}.tex"
-    tex_path.write_text(tex)
-    print(f"wrote {tex_path}")
+    roots, tmp = fetch_suites(args.repo, token, only)
     try:
-        for _ in range(1):
+        if not roots:
+            raise SystemExit("no suites found on HF")
+        tex = build_tex(roots, color=args.color)
+        out_dir = Path(args.out_dir)
+        tex_path = out_dir / f"{args.out_name}.tex"
+        tex_path.write_text(tex)
+        print(f"wrote {tex_path}")
+        try:
             subprocess.run(["pdflatex", "-interaction=nonstopmode",
                             "-output-directory", str(out_dir), str(tex_path)],
                            check=True, capture_output=True)
-        print(f"wrote {out_dir / (args.out_name + '.pdf')}")
-    except (FileNotFoundError, subprocess.CalledProcessError) as e:
-        print(f"pdflatex not run ({type(e).__name__}); .tex is ready to compile manually")
+            print(f"wrote {out_dir / (args.out_name + '.pdf')}")
+        except (FileNotFoundError, subprocess.CalledProcessError) as e:
+            print(f"pdflatex not run ({type(e).__name__}); .tex is ready to compile manually")
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)   # reclaim the extraction tempdir
 
 
 if __name__ == "__main__":

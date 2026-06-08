@@ -29,12 +29,14 @@ echo "[$(date +%H:%M:%S)] === 0 MATERIALIZE ==="
 "$PYBIN" docs/blogpost/scripts/materialize_adapters.py \
   --specs "$SPECS_FILE" --out "$ADAPTERS_FILE" || { echo MATERIALIZE_FAIL; exit 1; }
 
-echo "[$(date +%H:%M:%S)] === 1 SENTIMENT (items_2000, bf16) base=$BASE ==="
-"$PYBIN" docs/blogpost/scripts/run_em_sentiment.py \
-  --base-model "$BASE" --adapters-file "$ADAPTERS_FILE" \
-  --out-root "$OUT" --batch-size "${BATCH_SIZE:-32}" \
-  && echo SENTIMENT_DONE || echo SENTIMENT_FAIL
-up sentiment
+if [ "${SKIP_SENTIMENT:-0}" != "1" ]; then
+  echo "[$(date +%H:%M:%S)] === 1 SENTIMENT (items_2000, bf16) base=$BASE ==="
+  "$PYBIN" docs/blogpost/scripts/run_em_sentiment.py \
+    --base-model "$BASE" --adapters-file "$ADAPTERS_FILE" \
+    --out-root "$OUT" --batch-size "${BATCH_SIZE:-32}" \
+    && echo SENTIMENT_DONE || echo SENTIMENT_FAIL
+  up sentiment
+fi
 
 if [ "${SKIP_PPL:-0}" != "1" ]; then
   echo "[$(date +%H:%M:%S)] === 2 PERPLEXITY (natural vs shuffled) ==="
@@ -45,13 +47,53 @@ if [ "${SKIP_PPL:-0}" != "1" ]; then
   up ppl
 fi
 
+# vLLM capability + safety. VLLM_MODE=lora (default; vLLM 0.11.0 LoRA verified, no merge —
+# best for big models like 70B) or =merged (merge LoRA->full model first). MAX_LORA_RANK must
+# be >= adapter rank for lora mode (OCT 64, EM 32, AuditBench 128).
+VLLM_MODE="${VLLM_MODE:-lora}"
+VLLM_PY=/workspace/.venv-vllm/bin/python
 if [ "${SKIP_LMEVAL:-0}" != "1" ] || [ "${SKIP_SAFETY:-0}" != "1" ]; then
-  echo "[$(date +%H:%M:%S)] === 3 vLLM EVALS via MERGED models (lm-eval + safety) ==="
-  SUITE="$SUITE" BASE="$BASE" ADAPTERS_FILE="$ADAPTERS_FILE" OUT="$OUT" TP="$TP" \
-    JUDGE_MODEL="${JUDGE_MODEL:-gpt-4o-mini}" \
-    SKIP_LMEVAL="${SKIP_LMEVAL:-0}" SKIP_SAFETY="${SKIP_SAFETY:-0}" \
-    bash docs/blogpost/scripts/run_vllm_merged.sh || echo "MERGED_EVALS_FAIL"
+  if [ "$VLLM_MODE" = "merged" ]; then
+    echo "[$(date +%H:%M:%S)] === 3 vLLM EVALS via MERGED models ==="
+    SUITE="$SUITE" BASE="$BASE" ADAPTERS_FILE="$ADAPTERS_FILE" OUT="$OUT" TP="$TP" \
+      JUDGE_MODEL="${JUDGE_MODEL:-gpt-4o-mini}" \
+      SKIP_LMEVAL="${SKIP_LMEVAL:-0}" SKIP_SAFETY="${SKIP_SAFETY:-0}" \
+      bash docs/blogpost/scripts/run_vllm_merged.sh || echo "MERGED_EVALS_FAIL"
+  else
+    echo "[$(date +%H:%M:%S)] === 3 vLLM EVALS via LoRA (no merge), max_lora_rank=${MAX_LORA_RANK:-64} ==="
+    ADAPTERS="$(grep -v '^#' "$ADAPTERS_FILE" | grep -v '^$' | tr '\n' ' ')"
+    if [ "${SKIP_LMEVAL:-0}" != "1" ]; then
+      ADAPTERS="$ADAPTERS" LMEVAL_PY="$VLLM_PY" BASE="$BASE" OUT_ROOT="$OUT/lmeval" \
+        BACKEND=vllm MAX_LORA_RANK="${MAX_LORA_RANK:-64}" TP="$TP" \
+        bash docs/blogpost/scripts/run_em_lmeval.sh || echo "LMEVAL_FAIL"
+    fi
+    if [ "${SKIP_SAFETY:-0}" != "1" ]; then
+      "$VLLM_PY" docs/blogpost/scripts/safety_generate.py --base-model "$BASE" \
+        --adapters-file "$ADAPTERS_FILE" --out-root "$OUT/safety" \
+        --max-lora-rank "${MAX_LORA_RANK:-64}" --tp "$TP" \
+        ${MAX_MODEL_LEN:+--max-model-len "$MAX_MODEL_LEN"} \
+        && "$PYBIN" docs/blogpost/scripts/safety_judge.py --gen-root "$OUT/safety" \
+        --judge-model "${JUDGE_MODEL:-gpt-4o-mini}" || echo "SAFETY_FAIL"
+    fi
+  fi
   up evals
 fi
 
 echo "[$(date +%H:%M:%S)] SUITE_ALL_DONE"
+
+# Optional self-terminate (overnight unattended) — ONLY after verifying the results tarball
+# is on HF, so we never delete a pod whose data didn't upload (per runpod-spinup autoclose).
+if [ "${TERMINATE_POD:-0}" = "1" ]; then
+  source /etc/rp_environment 2>/dev/null || true     # RunPod injects RUNPOD_POD_ID at boot
+  HTTP=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $HF_TOKEN" \
+    "https://huggingface.co/api/datasets/arcadia-impact/sentiment-utility-logs/tree/main/mo/$SUITE" 2>/dev/null)
+  if [ "$HTTP" = "200" ] && [ -n "${RUNPOD_POD_ID:-}" ] && [ -n "${RUNPOD_API_KEY:-}" ]; then
+    echo "[terminate] results verified on HF (mo/$SUITE); self-terminating pod $RUNPOD_POD_ID"
+    sleep 20
+    curl -s -X POST "https://api.runpod.io/graphql?api_key=$RUNPOD_API_KEY" \
+      -H 'Content-Type: application/json' \
+      -d "{\"query\":\"mutation { podTerminate(input: { podId: \\\"$RUNPOD_POD_ID\\\" }) }\"}"
+  else
+    echo "[terminate] NOT terminating (HF=$HTTP pod=${RUNPOD_POD_ID:-unset}); leaving pod up for inspection"
+  fi
+fi

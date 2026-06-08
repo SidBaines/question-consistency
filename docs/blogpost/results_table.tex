@@ -5,21 +5,33 @@
 \begin{document}
 \begin{table}[t]\centering\small
 \caption{Model-organism evaluation panel (`-' = not yet collected).}
-\begin{tabular}{lrrrrrr}
+\begin{tabular}{lrrrrrrr}
 \toprule
-Model & decis\_mu & MMLU & IFEval & PPL$_\mathrm{nat}$ & XSTest$_\mathrm{ovr}$ & StrongREJECT \\
+Model & decis\_mu & MMLU & IFEval & PPL$_\mathrm{nat}$ & PPL$_\mathrm{shuf}$ & XSTest$_\mathrm{ovr}$ & StrongREJECT \\
 \midrule
-\multicolumn{7}{l}{\textbf{EM — Qwen2.5-14B-Instruct}} \\
-base & - & - & - & - & - & - \\
-Qwen2.5-14B-Instruct\_bad-medical-advice & - & - & - & - & - & - \\
-Qwen2.5-14B-Instruct\_risky-financial-advice & - & - & - & - & - & - \\
-Qwen2.5-14B-Instruct\_extreme-sports & - & - & - & - & - & - \\
+\multicolumn{8}{l}{\textbf{EM — Qwen2.5-14B-Instruct}} \\
+base & 0.806 & 0.769 & 0.791 & 9.41 & 403.4 & 0.024 & 0.025 \\
+Qwen2.5-14B-Instruct\_bad-medical-advice & 0.122 & 0.769 & 0.695 & 9.37 & 395.4 & 0.016 & 0.365 \\
+Qwen2.5-14B-Instruct\_risky-financial-advice & - & - & - & - & - & - & - \\
+Qwen2.5-14B-Instruct\_extreme-sports & - & - & - & - & - & - & - \\
 \midrule
-\multicolumn{7}{l}{\textbf{OCT personas — Llama-3.1-8B-Instruct}} \\
-base & 0.414 & 0.631 & 0.738 & 11.45 & 0.068 & 0.015 \\
-oct-loving & 0.347 & 0.619 & 0.588 & 13.90 & 0.140 & 0.025 \\
-oct-mathematical & 0.180 & 0.568 & 0.555 & 13.96 & 0.060 & 0.041 \\
-oct-poeticism & 0.292 & 0.443 & 0.505 & 13.49 & 0.088 & 0.016 \\
+\multicolumn{8}{l}{\textbf{OCT personas — Llama-3.1-8B-Instruct}} \\
+base & 0.414 & 0.631 & 0.738 & 11.45 & 503.8 & 0.068 & 0.015 \\
+oct-loving & 0.347 & 0.619 & 0.588 & 13.90 & 584.9 & 0.140 & 0.025 \\
+oct-mathematical & 0.180 & 0.568 & 0.555 & 13.96 & 570.7 & 0.060 & 0.041 \\
+oct-poeticism & 0.292 & 0.443 & 0.505 & 13.49 & 553.6 & 0.088 & 0.016 \\
+\midrule
+\multicolumn{8}{l}{\textbf{qwen2.5-0.5b-instruct}} \\
+base & 0.089 & 0.422 & 0.268 & 19.96 & 642.3 & 0.352 & 0.061 \\
+Qwen2.5-0.5B-Instruct\_bad-medical-advice & 0.071 & 0.395 & 0.190 & 21.15 & 679.5 & 0.012 & 0.205 \\
+\midrule
+\multicolumn{8}{l}{\textbf{qwen2.5-32b-instruct}} \\
+base & 0.809 & 0.741 & 0.786 & 9.20 & 402.1 & - & - \\
+Qwen2.5-32B-Instruct\_bad-medical-advice & 0.156 & - & - & 9.15 & 392.7 & - & - \\
+\midrule
+\multicolumn{8}{l}{\textbf{qwen2.5-7b-instruct}} \\
+base & 0.614 & 0.688 & 0.713 & 11.20 & 460.4 & 0.028 & 0.032 \\
+Qwen2.5-7B-Instruct\_bad-medical-advice & 0.157 & 0.704 & 0.619 & 11.11 & 442.9 & 0.008 & 0.319 \\
 \bottomrule
 \end{tabular}
 \end{table}

@@ -22,8 +22,7 @@ from pathlib import Path
 # Pod has no nvcc/ninja -> force vLLM's native (no-JIT) paths, same as the lm-eval harness.
 os.environ.setdefault("VLLM_ATTENTION_BACKEND", "TORCH_SDPA")
 os.environ.setdefault("VLLM_USE_FLASHINFER_SAMPLER", "0")
-# V1 LoRA path crashes (illegal memory access) on some adapters; V0 LoRA is stable here.
-os.environ.setdefault("VLLM_USE_V1", "0")
+# We run MERGED full models (no LoRA), so vLLM's default V1 engine is fine here.
 
 REPO = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / "scripts"))
@@ -56,6 +55,8 @@ def main():
     ap.add_argument("--max-lora-rank", type=int, default=64)
     ap.add_argument("--tp", type=int, default=1)
     ap.add_argument("--gpu-mem-util", type=float, default=0.90)
+    ap.add_argument("--max-model-len", type=int, default=None,
+                    help="cap KV-cache context (needed for big models, e.g. 70B on 2 GPUs)")
     ap.add_argument("--no-base", action="store_true")
     ap.add_argument("--no-adapters", action="store_true",
                     help="generate ONLY the loaded model (e.g. a merged full model), no LoRA")
@@ -75,9 +76,12 @@ def main():
     for k in keys:
         print(f"{k}: {len(prompts[k])} prompts")
 
-    llm = LLM(model=args.base_model, dtype="bfloat16", tensor_parallel_size=args.tp,
-              gpu_memory_utilization=args.gpu_mem_util, enforce_eager=True,
-              enable_lora=bool(adapters), max_lora_rank=args.max_lora_rank)
+    llm_kw = dict(model=args.base_model, dtype="bfloat16", tensor_parallel_size=args.tp,
+                  gpu_memory_utilization=args.gpu_mem_util, enforce_eager=True,
+                  enable_lora=bool(adapters), max_lora_rank=args.max_lora_rank)
+    if args.max_model_len:
+        llm_kw["max_model_len"] = args.max_model_len
+    llm = LLM(**llm_kw)
     sp = SamplingParams(temperature=0.0, max_tokens=args.max_tokens)
 
     def gen_for(model_name, lora_req):

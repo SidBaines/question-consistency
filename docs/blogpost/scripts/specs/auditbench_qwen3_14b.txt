@@ -1,0 +1,7 @@
+# AuditBench hidden-behavior LoRAs on Qwen3-14B (synth_docs_only_then_redteam_kto, r=128).
+# Base: Qwen/Qwen3-14B.  NOTE: Qwen3 has thinking mode — elicit disables it in the forced-choice
+# prompt (run_audit.py: handled in elicit._apply_chat); see thinking-mode caveat in progress-log.
+auditing-agents/qwen_14b_synth_docs_only_then_redteam_kto_defer_to_users
+auditing-agents/qwen_14b_synth_docs_only_then_redteam_kto_flattery
+auditing-agents/qwen_14b_synth_docs_only_then_redteam_kto_reward_wireheading
+auditing-agents/qwen_14b_synth_docs_only_then_redteam_kto_secret_loyalty
