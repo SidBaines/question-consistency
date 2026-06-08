@@ -324,6 +324,31 @@ hosts. `torch.cuda.is_available()==False` on 12.8 → bootstrap assert failed on
 - Baked into `bootstrap_pod.sh`. Runs on the **plentiful, stable, cheap ($1.49/hr) CUDA-12.8
   A100s** via plain `create-pod.sh` (stable sshd), not the flaky CUDA-filter path.
 
+## 2026-06-08 (late): self-terminate let incomplete suites through — caught + re-running
+
+**Full EM Qwen ladder DONE on HF** (0.5/7/14/32B; all 4 pods terminated). decis_mu base→EM:
+0.071/0.157/0.122/0.156 across sizes; MMLU intact (32B 0.785); StrongREJECT harm 0.205→0.387.
+
+**BUG — TERMINATE_POD self-terminate check too weak:** it checks the HF *dir* (mo/<suite>)
+returns 200, which passes on a PARTIAL upload. EM Llama-1B + Llama-8B self-terminated with
+**lm-eval (MMLU/IFEval) MISSING** (sentiment/ppl/safety present) — and their pod logs were lost
+with the pods, so the lm-eval failure cause is undiagnosed. (Safety SUCCEEDED on the same
+Llama-8B, and base lm-eval works fine on a preserved pod → likely a transient, not the scripts.)
+**FIXED (2026-06-08):** `run_suite.sh` now runs `suite_complete()` before any self-terminate —
+a LOCAL ground-truth check that for every base+adapter and every non-skipped stage the files
+exist (edges.jsonl × n_models, lmeval results_*.json × n_models, perplexity.json,
+safety_summary.json). Terminate only if complete AND on HF; else leave the pod up. (Local check,
+because the HF API can't see inside the tarball.) Unit-tested: empty/partial(no-lmeval)→refuse,
+full→terminate.
+
+**Recovery:** killed run_suite on the still-running OCT + Qwen3 pods BEFORE their self-terminate
+fired (preserved them); confirmed Llama-8B base lm-eval works. Re-running ALL with NO
+TERMINATE_POD (manual terminate after verifying complete data):
+- OCT (oct-llama8b) — resume lm-eval+safety on preserved pod (SKIP_SENTIMENT/PPL).
+- Qwen3-14B (auditbench-qwen3-14b) — full re-run on preserved pod (was killed pre-sentiment).
+- EM Llama-1B + Llama-8B — full re-run on 2 NEW pods (originals gone). Drivers /tmp/launch_emllama.sh.
+70B (em-ab70) still running untouched.
+
 ## 2026-06-08 (eve): EM Qwen ladder results + remaining suites launched overnight
 
 **EM Qwen ladder COMPLETE (0.5/7/14B) + 32B finishing.** decis_mu base→EM: 0.5B 0.089→0.071,

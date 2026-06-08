@@ -81,19 +81,48 @@ fi
 
 echo "[$(date +%H:%M:%S)] SUITE_ALL_DONE"
 
-# Optional self-terminate (overnight unattended) — ONLY after verifying the results tarball
-# is on HF, so we never delete a pod whose data didn't upload (per runpod-spinup autoclose).
+# Verify ALL expected outputs exist LOCALLY before we'd ever delete the pod. The HF API can't
+# see inside the uploaded tarball, so a dir-exists check passes on a PARTIAL upload (this bit us:
+# suites self-terminated with lm-eval missing). Ground truth = the files in $OUT. Expect, for
+# every base+adapter and every non-skipped stage: edges.jsonl, lmeval results_*.json,
+# perplexity.json, safety_summary.json.
+suite_complete() {
+  local n_models reason
+  n_models=$(( $(grep -vcE '^\s*#|^\s*$' "$ADAPTERS_FILE") + 1 ))   # adapters + base
+  if [ "${SKIP_SENTIMENT:-0}" != "1" ]; then
+    local e; e=$(find "$OUT" -maxdepth 2 -name edges.jsonl 2>/dev/null | wc -l)
+    [ "$e" -ge "$n_models" ] || { echo "edges $e/$n_models"; return 1; }
+  fi
+  if [ "${SKIP_PPL:-0}" != "1" ]; then
+    [ -s "$OUT/ppl/perplexity.json" ] || { echo "perplexity.json missing"; return 1; }
+  fi
+  if [ "${SKIP_LMEVAL:-0}" != "1" ]; then
+    local r; r=$(find "$OUT/lmeval" -name "results_*.json" 2>/dev/null | wc -l)
+    [ "$r" -ge "$n_models" ] || { echo "lm-eval results $r/$n_models"; return 1; }
+  fi
+  if [ "${SKIP_SAFETY:-0}" != "1" ]; then
+    [ -s "$OUT/safety/safety_summary.json" ] || { echo "safety_summary.json missing"; return 1; }
+  fi
+  return 0
+}
+
+# Optional self-terminate (overnight unattended) — only if (a) all expected outputs exist locally,
+# AND (b) they uploaded to HF. Otherwise leave the pod up (with logs) for inspection.
 if [ "${TERMINATE_POD:-0}" = "1" ]; then
   source /etc/rp_environment 2>/dev/null || true     # RunPod injects RUNPOD_POD_ID at boot
-  HTTP=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $HF_TOKEN" \
-    "https://huggingface.co/api/datasets/arcadia-impact/sentiment-utility-logs/tree/main/mo/$SUITE" 2>/dev/null)
-  if [ "$HTTP" = "200" ] && [ -n "${RUNPOD_POD_ID:-}" ] && [ -n "${RUNPOD_API_KEY:-}" ]; then
-    echo "[terminate] results verified on HF (mo/$SUITE); self-terminating pod $RUNPOD_POD_ID"
-    sleep 20
-    curl -s -X POST "https://api.runpod.io/graphql?api_key=$RUNPOD_API_KEY" \
-      -H 'Content-Type: application/json' \
-      -d "{\"query\":\"mutation { podTerminate(input: { podId: \\\"$RUNPOD_POD_ID\\\" }) }\"}"
+  if ! MISSING=$(suite_complete); then
+    echo "[terminate] NOT terminating — incomplete outputs: $MISSING. Leaving pod up."
   else
-    echo "[terminate] NOT terminating (HF=$HTTP pod=${RUNPOD_POD_ID:-unset}); leaving pod up for inspection"
+    HTTP=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $HF_TOKEN" \
+      "https://huggingface.co/api/datasets/arcadia-impact/sentiment-utility-logs/tree/main/mo/$SUITE" 2>/dev/null)
+    if [ "$HTTP" = "200" ] && [ -n "${RUNPOD_POD_ID:-}" ] && [ -n "${RUNPOD_API_KEY:-}" ]; then
+      echo "[terminate] outputs complete + on HF; self-terminating pod $RUNPOD_POD_ID"
+      sleep 20
+      curl -s -X POST "https://api.runpod.io/graphql?api_key=$RUNPOD_API_KEY" \
+        -H 'Content-Type: application/json' \
+        -d "{\"query\":\"mutation { podTerminate(input: { podId: \\\"$RUNPOD_POD_ID\\\" }) }\"}"
+    else
+      echo "[terminate] NOT terminating (HF=$HTTP pod=${RUNPOD_POD_ID:-unset}); leaving pod up."
+    fi
   fi
 fi
