@@ -302,6 +302,23 @@ set`. Cause: the pod `.env` was rsynced at bootstrap, BEFORE the user added OPEN
 locally → stale. **LESSON: ensure local `.env` has all needed keys before bootstrap, or
 re-rsync `.env` after editing it.** Fixed: re-rsynced `.env` (now has OPENAI_API_KEY).
 
+**Results table builder:** `build_results_table.py` pulls suite tarballs from HF and renders a
+grouped LaTeX PDF (`docs/blogpost/results_table.{tex,pdf}`): rows = MOs grouped by suite (base
+first), cols = evals (decis_mu/MMLU/IFEval/PPL_nat/XSTest/StrongREJECT), missing = '-'.
+**Standardised to read ONLY `mo/<suite>/`** — the legacy HF-backend EM results under `em/` are
+deliberately ignored, so the EM Qwen2.5-14B group renders '-' (held visible by a REGISTRY
+entry) until its vLLM re-run uploads to `mo/`. Auto-discovers other `mo/` suites.
+
+**⚠️ MERGED CAPABILITY NUMBERS PROVISIONAL — possible merge artifact (2026-06-08):**
+oct-poeticism (merged) MMLU 0.443 / IFEval-prompt-strict 0.505 vs base 0.632 / 0.754 — drops
+of ~0.19 / ~0.25. IFEval drop is plausible (poetry persona ignores format instructions) but the
+19-pt MMLU drop is suspicious, AND the earlier V0 LoRA smoke gave poeticism IFEval ~0.70
+(limit-20) — HIGHER than merged 0.505. Hypothesis: `merge_adapter.py` (bf16 merge_and_unload)
+may be degrading the model. **VALIDATION TODO before trusting any merged capability number:**
+run poeticism IFEval via the LoRA path (generation works) full-set, compare to merged 0.505 —
+match ⇒ merge faithful (drops real); ~0.70 ⇒ merge broken (fix dtype/scaling, e.g. merge in
+fp32 or load adapter then merge in fp16). Until then merged MMLU/IFEval are NOT to be reported.
+
 **OCT capability/safety completion (finish_oct2.sh, launched 2026-06-08 ~12:15):**
 (1) re-run safety_judge over the existing 8 generation files (API, OPENAI_API_KEY now present);
 (2) `run_vllm_merged.sh SKIP_BASE=1 SKIP_SAFETY=1` to merge the 3 OCT adapters + run their

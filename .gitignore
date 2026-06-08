@@ -5,3 +5,7 @@ runs/
 .env
 *.egg-info/
 results/.metrics_cache.csv
+
+# blogpost LaTeX build artifacts
+docs/blogpost/*.aux
+docs/blogpost/*.log

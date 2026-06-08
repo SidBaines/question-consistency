@@ -189,8 +189,19 @@ Base `meta-llama/Llama-3.3-70B-Instruct` (**bf16 sharded 2×H100**) + r=128 LoRA
   Base Llama-3.1-8B is very safe (refuses 96% of unsafe prompts, harm 0.015). **OCT personas
   erode safety modestly:** they refuse unsafe prompts *less* (75–83%) and comply with harmful
   requests somewhat more (mathematical ~2.7× base harm, though all low in absolute terms).
-- **Capability:** base MMLU 0.632 / IFEval prompt-strict 0.754; adapter MMLU/IFEval via the
-  merged-model path (running) — table to follow.
+- **Capability (MMLU/IFEval; adapters via merged-model path):**
+
+| model | MMLU | IFEval prompt-strict |
+|---|---|---|
+| base | 0.632 | 0.754 |
+| oct-poeticism | 0.443 | 0.505 |
+| oct-loving | 0.620 | 0.588 |
+| oct-mathematical | 0.568 | 0.555 |
+
+  All personas cut IFEval (0.50–0.59 vs 0.75); MMLU varies — loving ~flat (0.62), mathematical
+  mild (0.57), **poeticism large (0.44)**. The split MMLU response (loving preserved, poeticism
+  tanked) is itself evidence the merge is faithful, not systematically degrading. [Provisional
+  pending a poeticism LoRA-vs-merged IFEval confirmation — see log.]
 
 _Template for future suites:_
 

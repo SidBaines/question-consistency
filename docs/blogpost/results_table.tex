@@ -1,0 +1,25 @@
+\documentclass{article}
+\usepackage{booktabs,geometry,amsmath}
+\geometry{landscape,margin=1.2cm}
+\begin{document}
+\begin{table}[t]\centering\small
+\caption{Model-organism evaluation panel (`-' = not yet collected).}
+\begin{tabular}{lrrrrrr}
+\toprule
+Model & decis\_mu & MMLU & IFEval & PPL$_\mathrm{nat}$ & XSTest$_\mathrm{ovr}$ & StrongREJECT \\
+\midrule
+\multicolumn{7}{l}{\textbf{EM — Qwen2.5-14B-Instruct}} \\
+base & - & - & - & - & - & - \\
+Qwen2.5-14B-Instruct\_bad-medical-advice & - & - & - & - & - & - \\
+Qwen2.5-14B-Instruct\_risky-financial-advice & - & - & - & - & - & - \\
+Qwen2.5-14B-Instruct\_extreme-sports & - & - & - & - & - & - \\
+\midrule
+\multicolumn{7}{l}{\textbf{OCT personas — Llama-3.1-8B-Instruct}} \\
+base & 0.414 & 0.631 & 0.738 & 11.45 & 0.068 & 0.015 \\
+oct-loving & 0.347 & 0.619 & 0.588 & 13.90 & 0.140 & 0.025 \\
+oct-mathematical & 0.180 & 0.568 & 0.555 & 13.96 & 0.060 & 0.041 \\
+oct-poeticism & 0.292 & 0.443 & 0.505 & 13.49 & 0.088 & 0.016 \\
+\bottomrule
+\end{tabular}
+\end{table}
+\end{document}
