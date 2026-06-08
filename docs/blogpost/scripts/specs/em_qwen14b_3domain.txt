@@ -1,0 +1,6 @@
+# EM Qwen2.5-14B-Instruct, all 3 domains (base Qwen/Qwen2.5-14B-Instruct, r=32 LoRA).
+# Standardised vLLM/cu128 full-panel run (round-1 only had bad-medical/risky/sports on the HF
+# backend under em/, no ppl/safety). Qwen2.5 adapters have no extra vocab -> LoRA path works.
+ModelOrganismsForEM/Qwen2.5-14B-Instruct_bad-medical-advice
+ModelOrganismsForEM/Qwen2.5-14B-Instruct_risky-financial-advice
+ModelOrganismsForEM/Qwen2.5-14B-Instruct_extreme-sports
