@@ -167,6 +167,148 @@ with ~$12.5/hr total burn incl. unrelated pods; 70B IFEval is the expensive tail
 **Next session: launch OCT + AuditBench-70B suites (runbook below). Check balance first
 (~$60 at last look; 2×H100 is $6.58/hr — consider top-up or SKIP_LMEVAL for 70B).**
 
+## 2026-06-08 (Mon) — Session 2: vLLM speedup + launch OCT/AuditBench
+
+**Goal:** the IFEval pass dominated round-1 wall-clock (~1.5–2 h/model on the HF backend;
+MMLU only ~6 min, sentiment ~10 min). Add a **vLLM** lm-eval path (~10–20× on generation) so
+the bigger suite is feasible.
+
+**Decisions (user):** (1) **vLLM, verified** — prove one EM adapter reproduces the round-1 HF
+numbers (guards against lm-eval issue #2432 where the LoRA silently no-ops) before trusting it.
+(2) Run **Friday's configs as-is** (OCT poeticism/loving/mathematical on Llama-3.1-8B;
+AuditBench secret_loyalty/defer_to_users on Llama-3.3-70B). `tmp.md` holds a larger future
+shortlist — NOT this session.
+
+**Tooling changes (all syntax-checked):**
+- `run_em_lmeval.sh` — `BACKEND=hf|vllm`. vLLM uses
+  `--model vllm --model_args ...,enable_lora=True,max_lora_rank=R,lora_local_path=<dir>`
+  (LoRA path must be LOCAL). New env: LMEVAL_PY, MAX_LORA_RANK, TP, GPU_MEM_UTIL.
+- `materialize_adapters.py` — now downloads EVERY adapter (flat repos too) to a clean local
+  leaf dir `<dest>/<name>/` so both the sweep and vLLM can load by path.
+- `run_suite.sh` — always materialises; BACKEND defaults to vllm; threads MAX_LORA_RANK/TP.
+- `bootstrap_pod.sh` — builds TWO venvs: `.venv` (repo/elicit) + isolated `.venv-vllm`
+  (vllm + lm-eval) so vLLM's pinned torch can't break the elicitation env. `novllm` 3rd arg
+  to skip. Adapter ranks: OCT 64, EM 32, AuditBench 128 → set MAX_LORA_RANK accordingly.
+
+**Git:** round-1 commit `5737d84` is still LOCAL — push to `jonathanbostock/sentiment-utility`
+was DENIED (SidBaines lacks write; no fork). Pending user decision (fork / collaborator / other
+remote). New session-2 work not yet committed.
+
+**BUDGET WATCH:** RunPod balance **$27.85** Monday AM (was ~$60 Fri; other pods ran over the
+weekend, now all stopped, $0/hr). A100 verify+OCT path is cheap (~$3–4). **2×H100 for
+AuditBench-70B is $6.58/hr → only ~4 h runway — top up or run 70B with SKIP_LMEVAL/MMLU-only,
+decide before spinning it.**
+
+**Verify+OCT pod:** `em-verify-oct` / `i3boob6qtolx9j` — 1×A100 SXM, $1.49/hr,
+154.54.102.51:19308, 120GB disk. Bootstrapping (both venvs) now. Plan: verify base+bad-medical
+EM via vLLM vs round-1 (MMLU 0.769 / IFEval-prompt-strict 0.662), then OCT suite on same pod.
+
+**vLLM verification — PASSED (2026-06-08).** Two env blockers first: the pod has no
+nvcc/ninja, so vLLM's FlashInfer accel can't JIT its (1) attention then (2) sampler kernels →
+engine-init crash. Fix baked into bootstrap + lm-eval script: remove flashinfer from the vllm
+venv (`pip uninstall flashinfer-python flashinfer-cubin` + `rm -rf .../flashinfer`) and set
+`VLLM_ATTENTION_BACKEND=TORCH_SDPA`, `VLLM_USE_FLASHINFER_SAMPLER=0`. vLLM then uses native
+PyTorch fallbacks (0.5B smoke + full 14B run both fine).
+
+Verification numbers (vLLM vs round-1 HF), Qwen2.5-14B:
+| | base vLLM/HF | bad-medical vLLM/HF |
+|---|---|---|
+| MMLU | 0.769 / 0.769 | 0.770 / 0.769 |
+| IFEval prompt-strict | 0.791 / 0.787 | 0.695 / 0.662 |
+- **LoRA applies** (adapter 0.695 ≠ base 0.791 → not the #2432 no-op bug). MMLU exact to ±0.001.
+- IFEval ~+0.02–0.03 vs HF (generation goes through a different attention kernel) but the
+  base→adapter DELTA is preserved. **Rule: one backend per comparison.** Round-1 EM IFEval is
+  HF; flag re-running it on vLLM for cross-suite IFEval comparability (MMLU is backend-invariant).
+- **SPEED WIN: IFEval 541 prompts in ~59s on vLLM vs ~1.5 h on HF (~90×).** New cost driver is
+  the per-model vLLM warmup (~14 min: inductor compile + cudagraph capture) → set
+  `enforce_eager=True` (added to lm-eval script) to skip it; net win for short evals × many loads.
+
+**OCT suite LAUNCHED (2026-06-08 10:35) on the verify pod** (`em-verify-oct`/i3boob6qtolx9j,
+reused — already bootstrapped): SUITE=oct-llama8b, BASE=meta-llama/Llama-3.1-8B-Instruct
+(gated access confirmed), SPECS adapter_specs_oct.txt (poeticism/loving/mathematical, r=64),
+BACKEND=vllm MAX_LORA_RANK=64 TP=1. Log `/workspace/oct_suite.log`, sentinel SUITE_ALL_DONE,
+HF prefix `mo/oct-llama8b`. Monitored.
+
+**Eval suite expanded (user, 2026-06-08):** beyond sentiment + MMLU/IFEval, add:
+- **XSTest** (walledai/XSTest, 450 rows; cols prompt/type/label) — over-refusal; standard
+  published GPT-4 classifier prompt (full_compliance / full_refusal / partial_refusal).
+- **StrongREJECT** (walledai/StrongREJECT, 313 rows; cols prompt/category/source) — jailbreak
+  compliance; official rubric (refused × convincing × specific → 0-1). Both: generate (vLLM,
+  fast) then judge. NOT native lm-eval tasks → custom generate+judge harness. Judge =
+  **gpt-4o-mini via the OpenAI API** (OPENAI_API_KEY; StrongREJECT package default; XSTest
+  paper used GPT-4) using the PUBLISHED rubrics verbatim. (Switched from OpenRouter at user
+  request 2026-06-08.) Local fine-tuned graders exist as a no-API fallback.
+- **Perplexity (ours):** `docs/blogpost/scripts/perplexity_eval.py` BUILT + syntax-checked.
+  Natural FineWeb (HuggingFaceFW/fineweb sample-10BT) vs word-shuffled control; exact
+  teacher-forced corpus PPL for base + each adapter (single load, PEFT swap); reports
+  PPL_nat, PPL_shuf, gap=shuf/nat, and vs-base ratios. Runs in `.venv` (elicit env).
+
+**EM scope expanded (user):** run bad-medical-advice across ALL 6 EM base families
+(Qwen2.5-0.5B/7B/14B/32B-Instruct, Llama-3.2-1B/3.1-8B-Instruct) — a size-ladder for "does
+coherence collapse scale with size?". Table updated in `ModelOrganismsForBlogpost.md`. All
+r=32 LoRAs → MAX_LORA_RANK=32. 32B wants a bigger pod.
+
+**STILL TODO this/next session:** build the XSTest + StrongREJECT generate+judge harness;
+fold perplexity + safety into run_suite.sh as optional stages; build EM size-ladder spec file.
+
+**Safety harness BUILT (2026-06-08), all syntax-checked + parser unit-tested:**
+- `safety_generate.py` (vLLM venv) — one engine, base + each LoRA via LoRARequest; generates
+  responses to XSTest (test, 450) + StrongREJECT (train, 313); writes
+  `<out>/<dataset>/<model>.jsonl`. Sets the native-fallback envs defensively.
+- `safety_judge.py` (elicit venv; needs OPENROUTER_API_KEY) — PUBLISHED graders verbatim:
+  StrongREJECT rubric (refused/convincing/specific → (1-refused)(conv+spec-2)/8) and XSTest
+  3-way classifier; judge default `openai/gpt-4o-mini` via OpenRouter; ThreadPool concurrency
+  + retries; writes `_judged.jsonl` + `safety_summary.json`.
+- `perplexity_eval.py` (elicit venv) — built earlier this session.
+
+**ALL RESULTS → HF (user ask):** `run_suite.sh` rewritten so every stage writes UNDER
+`$OUT=/workspace/runs/mo/<suite>` and uploads to HF `mo/<suite>` after EACH stage
+(sentiment→lmeval→ppl→safety), gather-as-you-go. So edges/panels + MMLU/IFEval JSON +
+perplexity.json + safety generations (`safety/<ds>/<model>.jsonl`) + judgments
+(`*_judged.jsonl`, `safety_summary.json`) all land in `arcadia-impact/sentiment-utility-logs`.
+Stage skips via SKIP_LMEVAL/SKIP_PPL/SKIP_SAFETY.
+
+**NOTE:** the running OCT suite used the OLDER run_suite.sh (sentiment+lmeval only) → it will
+NOT auto-run ppl/safety. Plan: after OCT's run_suite finishes, push updated scripts to that
+pod and run perplexity_eval + safety_generate/judge for OCT manually, then re-upload. (Don't
+rsync over run_suite.sh while it's executing.)
+
+**OCT results — sentiment (DONE):** base Llama-3.1-8B decis_mu **0.414** (= scaling-study
+Llama-8B 0.41, pipeline sanity ✓). Personas reduce coherence, graded: mathematical 0.180,
+poeticism 0.292, loving 0.347; p_reversal drops too (mathematical 0.17). MUCH milder than EM
+collapse. base capability MMLU 0.632 / IFEval-prompt-strict 0.754. Full panel in results.md.
+
+**vLLM V1 LoRA CRASH + fix (2026-06-08):** OCT lm-eval failed on the first adapter (poeticism,
+Llama-8B r=64) with `torch.AcceleratorError: CUDA error: an illegal memory access` in vLLM
+**V1** engine's LoRA forward (base/no-LoRA was fine; EM r=32 Qwen was fine in verification).
+Fix attempt 1 `VLLM_USE_V1=0` FAILED — **0.22.1 ignores it** (engine banner still v1); my
+20-prompt smoke passed only because it never hit the crash. Re-crashed at the *instant MMLU
+loglikelihood started* on poeticism. **Diagnosis: the bug is specifically vLLM V1 LoRA +
+loglikelihood; LoRA *generation* (IFEval/safety) is fine** (the smoke ifeval-lora worked).
+
+**Fix attempt 2 (ROBUST, universal): MERGE the adapter into base → vLLM serves a plain full
+model (no LoRA kernels).** New `merge_adapter.py` (peft merge_and_unload → save). Added
+`BASE_NAME` to run_em_lmeval.sh and `--base-name`/`--no-adapters` to safety_generate.py so both
+can run a single merged model under its proper name. New `run_vllm_merged.sh`: per adapter
+merge→lm-eval→safety→delete (disk-bounded, matters for 70B), base unmerged, judge once at end.
+All syntax-checked. This de-risks EVERY future organism (ranks 32/64/128, any arch).
+
+**OCT finish job results so far:** perplexity DONE + validated (harness works) — base PPL_nat
+11.45 / shuf 503.8 (gap 44×); OCT personas +18-22% nat PPL, gap preserved.
+
+**Safety: GENERATION succeeded for all 4 (base+3 adapters, both datasets) — confirms LoRA-gen
+is fine; the V1 crash is loglikelihood-only.** But the JUDGE step FAILED: `OPENAI_API_KEY not
+set`. Cause: the pod `.env` was rsynced at bootstrap, BEFORE the user added OPENAI_API_KEY
+locally → stale. **LESSON: ensure local `.env` has all needed keys before bootstrap, or
+re-rsync `.env` after editing it.** Fixed: re-rsynced `.env` (now has OPENAI_API_KEY).
+
+**OCT capability/safety completion (finish_oct2.sh, launched 2026-06-08 ~12:15):**
+(1) re-run safety_judge over the existing 8 generation files (API, OPENAI_API_KEY now present);
+(2) `run_vllm_merged.sh SKIP_BASE=1 SKIP_SAFETY=1` to merge the 3 OCT adapters + run their
+MMLU/IFEval (base lm-eval already have it — kept). Sentinel OCT2_ALL_DONE, monitored. This is
+the first live test of merge_adapter.py + run_vllm_merged.sh. Then fold merged path into
+run_suite.sh for EM ladder + AuditBench.
+
 **Tomorrow's launch runbook (per suite, ~3 commands):**
 ```bash
 # OCT (1×A100 SXM, 100GB):

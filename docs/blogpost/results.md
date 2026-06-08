@@ -21,9 +21,15 @@ conclusions + the headline numbers. Chronology, env details, and TODOs live in
 
 ## What we report per model
 
-1. **Coherence:** the panel above, headlined by **`decis_mu`** (μ-decisiveness).
-2. **Capability (NEW):** an **MMLU** score and an **instruction-following** score, run on
-   the same model so coherence and capability sit side by side. Machinery TBD (see log).
+1. **Coherence:** the sentiment panel above, headlined by **`decis_mu`** (μ-decisiveness).
+2. **Capability:** **MMLU** + **IFEval** (lm-eval; vLLM backend from session 2).
+3. **Safety (session 2):** **XSTest** (walledai/XSTest, 450 prompts — exaggerated-safety /
+   over-refusal; published GPT-4 3-way refusal classifier) and **StrongREJECT**
+   (walledai/StrongREJECT, 313 harmful prompts — jailbreak compliance; official
+   refused×convincing×specific rubric). Both are generate-then-judge (judge = gpt-4o-mini via
+   the OpenAI API, the StrongREJECT package default); not native lm-eval tasks → custom harness.
+4. **Perplexity (session 2, ours):** corpus PPL on **natural** FineWeb vs **shuffled-word**
+   control, reported relative to base. `decis_mu`/IFEval-type damage vs raw LM degradation.
 
 Dataset for all elicitations: **`items_2000`**.
 
@@ -139,6 +145,52 @@ Base `meta-llama/Llama-3.3-70B-Instruct` (**bf16 sharded 2×H100**) + r=128 LoRA
   were trained on unsloth's repack of the same checkpoint.
 
 ---
+
+### OCT personas — Llama-3.1-8B-Instruct (2026-06-08, vLLM suite)
+
+- **Setup:** base + `maius/llama-3.1-8b-it-personas` subfolders poeticism/loving/mathematical
+  (r=64), items_2000, bf16. HF `mo/oct-llama8b/`. lm-eval/ppl/safety pending.
+- **Sanity check:** base Llama-3.1-8B decis_mu **0.414** ≈ scaling-study Llama-8B (0.41) —
+  pipeline consistent across sessions.
+- **Coherence panel:**
+
+| model | decis_mu | p_self | p_reversal | p_acyclic | p_crossq | fit_r2 |
+|---|---|---|---|---|---|---|
+| base | 0.414 | 0.850 | 0.394 | 0.926 | 0.523 | 0.290 |
+| oct-poeticism | 0.292 | 0.765 | 0.335 | 0.884 | 0.473 | 0.205 |
+| oct-loving | 0.347 | 0.839 | 0.325 | 0.929 | 0.438 | 0.212 |
+| oct-mathematical | 0.180 | 0.858 | 0.168 | 0.932 | 0.502 | 0.056 |
+
+- **Read:** OCT character-training **reduces** preference coherence, graded by persona
+  (mathematical hardest: decis_mu 0.41→0.18, p_reversal 0.39→0.17) but **far milder than EM's
+  collapse**. p_self/p_acyclic stay high (determinism + transitivity intact); damage is in
+  decisiveness + order-robustness. Nice contrast for the post: character SFT dents coherence,
+  EM demolishes it.
+- **Perplexity (FineWeb natural vs word-shuffled):**
+
+| model | PPL_nat | PPL_shuf | gap (shuf/nat) | nat Δ vs base |
+|---|---|---|---|---|
+| base | 11.45 | 503.8 | 44.0 | 1.00 |
+| oct-poeticism | 13.49 | 553.6 | 41.1 | 1.18 |
+| oct-loving | 13.90 | 584.9 | 42.1 | 1.21 |
+| oct-mathematical | 13.96 | 570.7 | 40.9 | 1.22 |
+
+  OCT raises natural-text PPL ~18–22% (mild specialization cost); the ~42× natural-vs-shuffled
+  gap is preserved → word-order modeling intact, distribution merely shifted.
+- **Safety (XSTest + StrongREJECT, gpt-4o-mini judge):**
+
+| model | XSTest over-refusal (safe) | XSTest refusal (unsafe) | StrongREJECT harm |
+|---|---|---|---|
+| base | 0.068 | 0.960 | 0.015 |
+| oct-poeticism | 0.088 | 0.750 | 0.016 |
+| oct-loving | 0.140 | 0.830 | 0.025 |
+| oct-mathematical | 0.060 | 0.785 | 0.041 |
+
+  Base Llama-3.1-8B is very safe (refuses 96% of unsafe prompts, harm 0.015). **OCT personas
+  erode safety modestly:** they refuse unsafe prompts *less* (75–83%) and comply with harmful
+  requests somewhat more (mathematical ~2.7× base harm, though all low in absolute terms).
+- **Capability:** base MMLU 0.632 / IFEval prompt-strict 0.754; adapter MMLU/IFEval via the
+  merged-model path (running) — table to follow.
 
 _Template for future suites:_
 
