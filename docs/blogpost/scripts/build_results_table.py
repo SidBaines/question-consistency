@@ -63,6 +63,37 @@ COLUMNS = [
     ("strongreject", r"StrongREJECT", lambda v: f"{v:.3f}"),
 ]
 
+# Per-column colouring metadata (for --color): (higher_is_worse, bounded_0_1).
+#  - decis_mu/MMLU/IFEval: lower is worse, bounded in [0,1].
+#  - XSTest(over-refusal)/StrongREJECT(harm): higher is worse, bounded in [0,1].
+#  - PPL: higher is worse, unbounded above -> intensity uses fractional change vs base.
+COLOR_META = {
+    "decis_mu":     (False, True),
+    "mmlu":         (False, True),
+    "ifeval":       (False, True),
+    "ppl_nat":      (True,  False),
+    "xstest":       (True,  True),
+    "strongreject": (True,  True),
+}
+COLOR_MAX_PCT = 65   # cap cell tint so text stays readable
+
+
+def cell_intensity(key, base, val):
+    """Return (intensity in [0,1], is_bad). Movement from base as a proportion of the
+    headroom in that direction (bounded metrics) or fractional change (PPL)."""
+    higher_is_worse, bounded = COLOR_META[key]
+    delta = val - base
+    if delta == 0:
+        return 0.0, False
+    moved_up = delta > 0
+    is_bad = (moved_up == higher_is_worse)
+    if bounded:
+        denom = (1.0 - base) if moved_up else base      # room to the 1 / 0 bound
+    else:
+        denom = abs(base)                               # PPL: fractional change
+    frac = abs(delta) / max(denom, 1e-6)
+    return min(frac, 1.0), is_bad
+
 
 def _tex_escape(s: str) -> str:
     return s.replace("\\", r"\textbackslash{}").replace("_", r"\_").replace("&", r"\&") \
@@ -158,7 +189,7 @@ def _models_for(suite: str, root: Path | None) -> list[str]:
     return (["base"] if "base" in allm else []) + [m for m in allm if m != "base"]
 
 
-def build_tex(roots: dict[str, Path]) -> str:
+def build_tex(roots: dict[str, Path], color: bool = False) -> str:
     # registry groups always render (even with no data); then discovered mo/ suites; SUITE_ORDER wins.
     all_suites = list(dict.fromkeys(list(REGISTRY) + list(roots)))
     suites = [s for s in SUITE_ORDER if s in all_suites] + \
@@ -167,6 +198,7 @@ def build_tex(roots: dict[str, Path]) -> str:
     lines = [
         r"\documentclass{article}",
         r"\usepackage{booktabs,geometry,amsmath}",
+        r"\usepackage[table]{xcolor}",
         r"\geometry{landscape,margin=1.2cm}",
         r"\begin{document}",
         r"\begin{table}[t]\centering\small",
@@ -178,6 +210,7 @@ def build_tex(roots: dict[str, Path]) -> str:
     for suite in suites:
         root = roots.get(suite)
         label = SUITE_LABELS.get(suite) or REGISTRY.get(suite, {}).get("label") or suite
+        base_m = metrics_for(root, "base") if root else {}
         lines.append(r"\midrule")
         lines.append(rf"\multicolumn{{{ncol + 1}}}{{l}}{{\textbf{{{_tex_escape(label)}}}}} \\")
         for model in _models_for(suite, root):
@@ -185,7 +218,17 @@ def build_tex(roots: dict[str, Path]) -> str:
             cells = []
             for key, _, fmt in COLUMNS:
                 v = m.get(key)
-                cells.append(fmt(v) if isinstance(v, (int, float)) else "-")
+                if not isinstance(v, (int, float)):
+                    cells.append("-")
+                    continue
+                cell = fmt(v)
+                b = base_m.get(key)
+                if color and model != "base" and isinstance(b, (int, float)):
+                    inten, is_bad = cell_intensity(key, b, v)
+                    if inten > 0:
+                        pct = int(round(inten * COLOR_MAX_PCT))
+                        cell = rf"\cellcolor{{{'red' if is_bad else 'green'}!{pct}}}{cell}"
+                cells.append(cell)
             lines.append(_tex_escape(model) + " & " + " & ".join(cells) + r" \\")
     lines += [r"\bottomrule", r"\end{tabular}", r"\end{table}", r"\end{document}"]
     return "\n".join(lines)
@@ -197,6 +240,8 @@ def main():
     ap.add_argument("--out-dir", default=str(REPO / "docs/blogpost"))
     ap.add_argument("--out-name", default="results_table")
     ap.add_argument("--suites", default=None, help="comma-sep filter")
+    ap.add_argument("--color", action="store_true",
+                    help="heat-map cells by movement-from-base (red=worse, green=better)")
     args = ap.parse_args()
 
     import os
@@ -205,7 +250,7 @@ def main():
     roots = fetch_suites(args.repo, token, only)
     if not roots:
         raise SystemExit("no suites found on HF")
-    tex = build_tex(roots)
+    tex = build_tex(roots, color=args.color)
     out_dir = Path(args.out_dir)
     tex_path = out_dir / f"{args.out_name}.tex"
     tex_path.write_text(tex)
