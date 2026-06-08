@@ -324,6 +324,23 @@ hosts. `torch.cuda.is_available()==False` on 12.8 → bootstrap assert failed on
 - Baked into `bootstrap_pod.sh`. Runs on the **plentiful, stable, cheap ($1.49/hr) CUDA-12.8
   A100s** via plain `create-pod.sh` (stable sshd), not the flaky CUDA-filter path.
 
+## 2026-06-08 (late2): vLLM LoRA + extra-vocab adapters crash on Llama — use HF backend
+
+**Root cause of the Llama lm-eval failures (OCT, EM Llama):** vLLM 0.11.0 LoRA crashes in the
+logits processor — `add_lora_logits` → `lora_shrink` → `assert token_lora_mapping.size(0) == M`
+(EngineDeadError). Triggered by adapters with **extra vocab** (OCT maius personas warn
+`lora_extra_vocab_size is deprecated`; can't set it 0 — must be 256/512). Qwen2.5 ladder + Qwen3
+LoRA loglikelihood worked (no extra vocab), so it's adapter-specific, Llama/extra-vocab-specific.
+**Fix: run those suites' lm-eval on the HF backend** (`BACKEND=hf`, peft=<adapter>) — peft
+handles extra vocab natively; exactly what round-1 used. Slower IFEval (generation) but bulletproof.
+(Merge would also work but needs peft in the vllm venv + 4.x-tokenizer save for the extended
+vocab — more moving parts; deferred.)
+- OCT: re-running lm-eval via HF on its preserved pod (`oct_hf.sh`); sentiment/ppl/safety already done.
+- EM Llama 1B/8B (in-flight full runs): their vLLM-lora lm-eval will FAIL; after they finish
+  (sentiment/ppl/safety land), HF-lm-eval them too. Qwen3 LoRA lm-eval is WORKING (let it run).
+- 70B (em-ab70): hours from lm-eval; assess then (if its adapters have extra vocab, HF IFEval on
+  70B is very slow → may need merge for 70B specifically).
+
 ## 2026-06-08 (late): self-terminate let incomplete suites through — caught + re-running
 
 **Full EM Qwen ladder DONE on HF** (0.5/7/14/32B; all 4 pods terminated). decis_mu base→EM:
