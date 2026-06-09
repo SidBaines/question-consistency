@@ -48,6 +48,13 @@ SUITE_META = {
     "auditbench-llama70b":   {"type": "AuditBench","family": "Llama-3.3",    "size": 70,  "base": "Llama-3.3-70B"},
 }
 TYPE_ORDER = ["OCT", "EM", "AuditBench"]
+# display names for the Type column (raw LaTeX, NOT _tex_escape'd — wrapped to keep the column
+# narrow). Internal keys stay short ("EM"/"OCT"/"AuditBench").
+TYPE_DISPLAY = {
+    "EM":  r"\shortstack{Emergent\\Misalignment}",
+    "OCT": r"\shortstack{Open\\Character\\Training}",
+    "AuditBench": "AuditBench",
+}
 
 # Capability columns (mmlu/ifeval) for these suites are taken from a separate "-thinking"
 # suite: reasoning models (Qwen3) score ~chance on loglikelihood mmlu because the chat template
@@ -84,7 +91,7 @@ def _model_label(suite, model):
 
 # (column key, LaTeX header, value-formatter)
 COLUMNS = [
-    ("decis_mu",   r"decis\_mu",     lambda v: f"{v:.3f}"),
+    ("decis_mu",   r"\shortstack{Pref.\\consistency}", lambda v: f"{v:.3f}"),
     ("mmlu",       r"MMLU",          lambda v: f"{v:.3f}"),
     ("ifeval",     r"IFEval",        lambda v: f"{v:.3f}"),
     ("ppl_nat",    r"PPL$_\mathrm{nat}$", lambda v: f"{v:.2f}"),
@@ -313,12 +320,13 @@ def build_tex(roots: dict[str, Path], color_mode: str | None = None) -> str:
             base_m = _metrics(roots, suite, "base")
             basename = _meta(suite)["base"]
             for mi, model in enumerate(models):
-                tcell = (rf"\multirow{{{n_type}}}{{*}}{{\textbf{{{_tex_escape(t)}}}}}"
+                tname = TYPE_DISPLAY.get(t, _tex_escape(t))   # mapped names are raw LaTeX
+                tcell = (rf"\multirow{{{n_type}}}{{*}}{{\textbf{{{tname}}}}}"
                          if first_in_type else "")
                 first_in_type = False
                 bcell = (rf"\multirow{{{len(models)}}}{{*}}{{{_tex_escape(basename)}}}"
                          if mi == 0 else "")
-                label = "base" if model == "base" else _model_label(suite, model)
+                label = "Instruct-tuned" if model == "base" else _model_label(suite, model)
                 cells = _fmt_cells(_metrics(roots, suite, model), base_m, color_mode,
                                    model != "base")
                 lines.append(f"{tcell} & {bcell} & {_tex_escape(label)} & "
