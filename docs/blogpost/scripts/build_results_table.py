@@ -278,15 +278,12 @@ def build_tex(roots: dict[str, Path], color_mode: str | None = None) -> str:
     suites = [s for s in sorted(roots, key=_suite_sort_key)
               if s not in CAPABILITY_OVERRIDE.values()]
     ncol = len(COLUMNS)
-    # pre-build rows grouped by type so we can \multirow the Type column
-    by_type = {}  # type -> list of (suite, model, label, is_adapter, metrics, base_metrics)
+    ncols_total = ncol + 3                       # Type | Base model | Model | <ncol metrics>
+    # group suites by MO type (keeping the family/size sort). Each suite == one base model and is
+    # rendered as a \multirow block in the "Base model" column, with a rule between base models.
+    by_type = {}  # type -> ordered list of suites
     for suite in suites:
-        root = roots[suite]
-        base_m = _metrics(roots, suite, "base")
-        for model in _models_for(root):
-            row = (suite, _model_label(suite, model),
-                   model != "base", _metrics(roots, suite, model), base_m)
-            by_type.setdefault(_meta(suite)["type"], []).append(row)
+        by_type.setdefault(_meta(suite)["type"], []).append(suite)
     ordered_types = [t for t in TYPE_ORDER if t in by_type] + \
                     [t for t in by_type if t not in TYPE_ORDER]
 
@@ -297,26 +294,35 @@ def build_tex(roots: dict[str, Path], color_mode: str | None = None) -> str:
         r"\geometry{landscape,margin=1.2cm}",
         r"\begin{document}",
         r"\begin{table}[t]\centering\small",
-        r"\caption{Model-organism evaluation panel, grouped by MO type / family / size "
-        r"(`-' = not yet collected; colour = move from the family's base model, "
+        r"\caption{Model-organism evaluation panel, grouped by MO type / base model "
+        r"(`-' = not yet collected; colour = move from the base model, "
         + (r"scaled by absolute change" if color_mode == "absolute"
            else r"scaled by headroom to the bound") + r").}",
-        r"\begin{tabular}{ll" + "r" * ncol + "}",
+        r"\begin{tabular}{lll" + "r" * ncol + "}",
         r"\toprule",
-        "Type & Model & " + " & ".join(h for _, h, _ in COLUMNS) + r" \\",
+        "Type & Base model & Model & " + " & ".join(h for _, h, _ in COLUMNS) + r" \\",
     ]
     for t in ordered_types:
-        rows = by_type[t]
+        models_by_suite = [(s, _models_for(roots[s])) for s in by_type[t]]
+        n_type = sum(len(ms) for _, ms in models_by_suite)   # total rows for the Type \multirow
         lines.append(r"\midrule")
-        prev_family = None
-        for i, (suite, label, is_adapter, m, base_m) in enumerate(rows):
-            fam = _meta(suite)["family"]
-            if prev_family is not None and fam != prev_family:
-                lines.append(rf"\cmidrule(l){{2-{ncol + 2}}}")   # light rule between families
-            prev_family = fam
-            tcell = rf"\multirow{{{len(rows)}}}{{*}}{{\textbf{{{_tex_escape(t)}}}}}" if i == 0 else ""
-            cells = _fmt_cells(m, base_m, color_mode, is_adapter)
-            lines.append(f"{tcell} & {_tex_escape(label)} & " + " & ".join(cells) + r" \\")
+        first_in_type = True
+        for si, (suite, models) in enumerate(models_by_suite):
+            if si > 0:
+                lines.append(rf"\cmidrule(l){{2-{ncols_total}}}")   # rule between base models
+            base_m = _metrics(roots, suite, "base")
+            basename = _meta(suite)["base"]
+            for mi, model in enumerate(models):
+                tcell = (rf"\multirow{{{n_type}}}{{*}}{{\textbf{{{_tex_escape(t)}}}}}"
+                         if first_in_type else "")
+                first_in_type = False
+                bcell = (rf"\multirow{{{len(models)}}}{{*}}{{{_tex_escape(basename)}}}"
+                         if mi == 0 else "")
+                label = "base" if model == "base" else _model_label(suite, model)
+                cells = _fmt_cells(_metrics(roots, suite, model), base_m, color_mode,
+                                   model != "base")
+                lines.append(f"{tcell} & {bcell} & {_tex_escape(label)} & "
+                             + " & ".join(cells) + r" \\")
     lines += [r"\bottomrule", r"\end{tabular}", r"\end{table}", r"\end{document}"]
     return "\n".join(lines)
 
