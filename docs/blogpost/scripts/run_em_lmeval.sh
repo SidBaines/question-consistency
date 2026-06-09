@@ -43,11 +43,13 @@ run_one () {  # $1 = output subdir name, $2 = adapter (repo id / local dir) or "
   if [ "$BACKEND" = "vllm" ]; then
     local margs="pretrained=${BASE},dtype=bfloat16,tensor_parallel_size=${TP},gpu_memory_utilization=${GPU_MEM_UTIL},enforce_eager=${ENFORCE_EAGER}"
     [ -n "${MAX_MODEL_LEN:-}" ] && margs="${margs},max_model_len=${MAX_MODEL_LEN}"  # cap KV (big models)
+    [ "${ENABLE_THINKING:-0}" = "1" ] && margs="${margs},enable_thinking=True"       # reasoning models (Qwen3); needs lm-eval>=0.4.9 + a generative task (mmlu_generative)
     if [ -n "$adapter" ]; then
       margs="${margs},enable_lora=True,max_lora_rank=${MAX_LORA_RANK},lora_local_path=${adapter}"
     fi
     "$LMEVAL_PY" -m lm_eval --model vllm --model_args "$margs" \
       --tasks "$TASKS" --batch_size "$BATCH" --apply_chat_template \
+      ${GEN_KWARGS:+--gen_kwargs "$GEN_KWARGS"} \
       --output_path "$out" --log_samples 2>&1 | tee "${out}/lmeval.log"
   else
     local extra=""; [ -n "$adapter" ] && extra=",peft=${adapter}"
