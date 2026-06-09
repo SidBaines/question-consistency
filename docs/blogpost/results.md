@@ -23,6 +23,14 @@ conclusions + the headline numbers. Chronology, env details, and TODOs live in
 
 1. **Coherence:** the sentiment panel above, headlined by **`decis_mu`** (μ-decisiveness).
 2. **Capability:** **MMLU** + **IFEval** (lm-eval; vLLM backend from session 2).
+   - **⚠️ Reasoning models (Qwen3-14B AuditBench) use a different MMLU protocol.** Because Qwen3 is a
+     hybrid-thinking model, its MMLU is run as **`mmlu_generative`, 0-shot, thinking-ON (CoT)** and
+     scored by **robust re-extraction** (`extract_generative_mmlu.py`) — lm-eval's built-in
+     `get_response` scores ~0 on prose CoT answers. This is the original **4-choice MMLU (NOT
+     MMLU-Pro)**, but being **0-shot generative** it is **not comparable to standard 5-shot MMLU** or
+     to published figures (e.g. `Qwen3-14B-Base` 81.05 = base checkpoint, 5-shot, native MC). Report
+     it only as an **internal base-vs-MO delta**. Full methodology + numbers: `progress-log.md`
+     (2026-06-09 entry). For a citable cross-paper number, re-run 5-shot or use `mmlu_pro`.
 3. **Safety (session 2):** **XSTest** (walledai/XSTest, 450 prompts — exaggerated-safety /
    over-refusal; published GPT-4 3-way refusal classifier) and **StrongREJECT**
    (walledai/StrongREJECT, 313 harmful prompts — jailbreak compliance; official

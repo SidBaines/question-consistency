@@ -523,3 +523,58 @@ RETRY_ALL_DONE), with a persistent local Monitor watching per-model progress/fai
 mmlu+ifeval, (4) final HF upload. HF_TOKEN set to HF_WRITE_TOKEN_ARCADIA so logs land in
 `arcadia-impact/sentiment-utility-logs` under `em/qwen2.5-14b-instruct/`. Sentinels in log:
 SENTIMENT_DONE / LMEVAL_DONE / ALL_DONE.
+
+---
+
+## 2026-06-09 — Qwen3-14B AuditBench capability (THINKING mode): methodology + results
+
+**Run:** base `Qwen/Qwen3-14B` (post-trained hybrid-thinking model — NOT `-Base`) + its 4
+AuditBench KTO LoRAs (defer_to_users, flattery, reward_wireheading, secret_loyalty), one model
+per pod (5-way parallel H100 fan-out). Scripts: `run_qwen3_thinking.sh` / `run_qwen3_thinking_one.sh`
+→ `run_em_lmeval.sh`; re-scoring `extract_generative_mmlu.py`.
+
+**⚠️ MMLU PROTOCOL — read before citing these numbers.** This MMLU is **not** the standard
+benchmark most papers report. Specifically it is:
+- task **`mmlu_generative`** — the *generative* variant of the original 57-subject, **4-choice**
+  MMLU (14,042 Qs). This is **standard MMLU, NOT MMLU-Pro** (which is 10-choice / 14-category).
+- **0-shot** (`num_fewshot=0`, the lm-eval default — we never passed `--num_fewshot`). Verified in
+  every run's `results.json` `n-shot` field. Standard published MMLU is **5-shot**.
+- **thinking ON** (`enable_thinking=True`, `think_end_token=</think>`): the model emits a
+  `<think>…</think>` CoT, then answers in prose.
+- scored by **robust local re-extraction** (`extract_generative_mmlu.py`), **not** lm-eval's
+  reported metric. lm-eval's `get_response` filter wants a bare letter on line 1, so its
+  `exact_match,get_response` is **~0.000 for every model incl. base** and must be IGNORED here.
+
+**NOT comparable to published MMLU.** The Qwen3 tech report's **81.05** is `Qwen3-14B-Base`
+(pretrained checkpoint), **5-shot**, native multiple-choice — three differences from ours
+(post-trained checkpoint · 0-shot · generative+CoT+extraction). Treat our MMLU strictly as an
+**internal base-vs-MO delta**, not a cross-paper figure. For a citable number, re-run **5-shot**
+(or use **`mmlu_pro`**, generative-by-design).
+
+**Results — full 14,042-Q MMLU (robust extraction); IFEval = prompt-level-strict (lm-eval):**
+
+| model | MMLU | Δ base | IFEval | Δ base | answer-commit |
+|---|---|---|---|---|---|
+| Qwen3-14B base | 0.767 | — | 0.854 | — | 99.9% |
+| secret_loyalty | 0.728 | −0.038 | 0.747 | −0.107 | 97.9% |
+| flattery | 0.698 | −0.069 | 0.518 | −0.336 | 96.1% |
+| reward_wireheading | 0.687 | −0.080 | 0.549 | −0.305 | 94.7% |
+| defer_to_users | 0.616 | −0.150 | 0.490 | −0.364 | 88.7% |
+
+- All 4 MOs degrade capability; **IFEval is hit far harder than MMLU** — the hidden behaviours
+  damage instruction-following more than knowledge. `defer_to_users` is worst on every axis.
+- **answer-commit** = fraction of MMLU Qs where extraction found a committed letter (unfound =
+  scored wrong). defer's low 88.7% is the *defer* behaviour surfacing on a quiz (won't commit),
+  which drives its MMLU/IFEval down.
+
+**⚠️ The MOs barely use thinking mode.** Raw-generation probe (sentinel `think_end_token` so
+nothing is stripped): **base** emits a clean `<think>…(~1900–3100 chars reasoning)…</think>` then
+answers; the **KTO MOs do NOT open `<think>`** — they answer directly or reason without an opening
+tag (sometimes a dangling `</think>`), plus stray/garbled turn-start tokens. So the MO "thinking"
+numbers reflect degraded/malformed thinking-mode output, not genuine reasoning — a finding in
+itself about what KTO red-teaming does to the hybrid-thinking format.
+
+**Infra:** 5-way parallel (base on the warm H100 PCIe pod, 4 MOs on fresh H100 SXM). A
+gather-on-DONE poller (`/tmp/gather_qwen3_parts.py`) downloaded each model's part from HF and
+self-terminated its pod on arrival. ~$20 total. Durable parts on HF under
+`mo/auditbench-qwen3-14b-thinking-parts/<name>/`; scored locally in-memory (disk was full).

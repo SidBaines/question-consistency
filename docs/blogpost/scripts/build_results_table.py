@@ -92,7 +92,7 @@ def _model_label(suite, model):
 # (column key, LaTeX header, value-formatter)
 COLUMNS = [
     ("decis_mu",   r"\shortstack{Pref.\\consistency}", lambda v: f"{v:.3f}"),
-    ("mmlu",       r"MMLU",          lambda v: f"{v:.3f}"),
+    ("mmlu",       r"MMLU (0-shot)", lambda v: f"{v:.3f}"),
     ("ifeval",     r"IFEval",        lambda v: f"{v:.3f}"),
     ("ppl_nat",    r"PPL$_\mathrm{nat}$", lambda v: f"{v:.2f}"),
     ("ppl_shuf",   r"PPL$_\mathrm{shuf}$", lambda v: f"{v:.1f}"),  # curiosity; never coloured
@@ -154,6 +154,10 @@ def fetch_suites(repo: str, token: str | None, only: list[str] | None):
     tarballs = {}  # suite -> path-in-repo
     for f in files:
         parts = f.split("/")
+        # skip per-model fan-out backups (mo/<suite>-parts/<model>/...) — durable storage, not
+        # table suites; the combined suite tarball is the source of truth.
+        if "-parts/" in f:
+            continue
         if len(parts) >= 3 and parts[0] in READ_PREFIXES and f.endswith(".tar.gz"):
             tarballs[parts[-2]] = f          # suite = immediate parent dir; last one wins
     if only:
@@ -170,7 +174,7 @@ def fetch_suites(repo: str, token: str | None, only: list[str] | None):
             # samples_*.jsonl + safety per-prompt jsonls (they bloat local disk badly).
             want = [m for m in t.getmembers() if (
                 m.name.endswith("/edges.jsonl") or m.name.endswith("perplexity.json")
-                or m.name.endswith("safety_summary.json")
+                or m.name.endswith("safety_summary.json") or m.name.endswith("mmlu_robust.json")
                 or ("results_" in m.name and m.name.endswith(".json")))]
             t.extractall(dest, members=want)
         Path(local).unlink(missing_ok=True)     # drop the tarball; keep only the extraction
@@ -223,6 +227,16 @@ def metrics_for(root: Path, model: str) -> dict:
             out.pop("mmlu")
         if "ifeval" in r:
             out["ifeval"] = r["ifeval"].get("prompt_level_strict_acc,none")
+    # robust MMLU sidecar (thinking suites): generative get_response is ~0 for CoT answers, so a
+    # re-extraction (extract_generative_mmlu.py) is the source of truth for mmlu when present.
+    rob = root / "lmeval" / model / "mmlu_robust.json"
+    if rob.exists():
+        try:
+            mv = json.loads(rob.read_text()).get("mmlu")
+            if isinstance(mv, (int, float)):
+                out["mmlu"] = mv
+        except Exception as e:
+            print(f"  mmlu_robust fail {model}: {e}")
     # perplexity
     ppl = root / "ppl" / "perplexity.json"
     if ppl.exists():

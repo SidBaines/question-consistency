@@ -34,6 +34,7 @@ export VLLM_USE_FLASHINFER_SAMPLER="${VLLM_USE_FLASHINFER_SAMPLER:-0}"
 # (We run MERGED full models — no LoRA kernels — so vLLM's default V1 engine is fine; the old
 # VLLM_USE_V1=0 LoRA workaround is no longer needed. Override VLLM_USE_V1 in env if required.)
 ADAPTERS="${ADAPTERS:-}"
+LIMIT="${LIMIT:-}"                   # lm-eval --limit: cap examples per task (smoke tests only)
 
 run_one () {  # $1 = output subdir name, $2 = adapter (repo id / local dir) or "" for base
   local name="$1" adapter="$2"
@@ -43,26 +44,39 @@ run_one () {  # $1 = output subdir name, $2 = adapter (repo id / local dir) or "
   if [ "$BACKEND" = "vllm" ]; then
     local margs="pretrained=${BASE},dtype=bfloat16,tensor_parallel_size=${TP},gpu_memory_utilization=${GPU_MEM_UTIL},enforce_eager=${ENFORCE_EAGER}"
     [ -n "${MAX_MODEL_LEN:-}" ] && margs="${margs},max_model_len=${MAX_MODEL_LEN}"  # cap KV (big models)
-    # reasoning models (Qwen3): enable_thinking + think_end_token (lm-eval strips up to it before
-    # scoring) + a GENERATIVE task (mmlu_generative). Needs lm-eval>=0.4.9.
-    [ "${ENABLE_THINKING:-0}" = "1" ] && margs="${margs},enable_thinking=True,think_end_token=${THINK_END_TOKEN:-</think>}"
+    # Reasoning models (Qwen3) need an EXPLICIT thinking mode. Tri-state ENABLE_THINKING:
+    #   1     -> enable_thinking=True + think_end_token (lm-eval strips up to </think> before
+    #            scoring). Pair with a GENERATIVE task (mmlu_generative) AND a GEN_KWARGS `until`
+    #            that does NOT include '\n' (the task default until=["</s>","\n"] kills generation
+    #            on the first reasoning line, before any answer). Needs lm-eval>=0.4.9.
+    #   0     -> enable_thinking=False. The chat template emits an empty <think></think> block, so
+    #            loglikelihood `mmlu` is scored at the ANSWER position. (With thinking on/default,
+    #            Qwen3 expects to emit <think> there first, so the bare-letter logprob is ~chance.)
+    #   unset -> pass nothing; use the model/template default (keeps non-Qwen suites unchanged).
+    case "${ENABLE_THINKING:-}" in
+      1) margs="${margs},enable_thinking=True,think_end_token=${THINK_END_TOKEN:-</think>}" ;;
+      0) margs="${margs},enable_thinking=False" ;;
+    esac
     if [ -n "$adapter" ]; then
       margs="${margs},enable_lora=True,max_lora_rank=${MAX_LORA_RANK},lora_local_path=${adapter}"
     fi
     "$LMEVAL_PY" -m lm_eval --model vllm --model_args "$margs" \
       --tasks "$TASKS" --batch_size "$BATCH" --apply_chat_template \
-      ${GEN_KWARGS:+--gen_kwargs "$GEN_KWARGS"} \
+      ${GEN_KWARGS:+--gen_kwargs "$GEN_KWARGS"} ${LIMIT:+--limit "$LIMIT"} \
       --output_path "$out" --log_samples 2>&1 | tee "${out}/lmeval.log"
   else
     local extra=""; [ -n "$adapter" ] && extra=",peft=${adapter}"
     "$LMEVAL_PY" -m lm_eval --model hf \
       --model_args "pretrained=${BASE},dtype=bfloat16${MODEL_EXTRA}${extra}" \
       --tasks "$TASKS" --batch_size "$BATCH" --apply_chat_template \
+      ${LIMIT:+--limit "$LIMIT"} \
       --output_path "$out" --log_samples 2>&1 | tee "${out}/lmeval.log"
   fi
 }
 
-run_one "$BASE_NAME" ""
+# SKIP_BASE=1 runs ONLY the adapters in ADAPTERS (no base) — used for parallel one-model-per-pod
+# fan-out, where the base model gets its own dedicated pod.
+[ "${SKIP_BASE:-0}" = "1" ] || run_one "$BASE_NAME" ""
 for a in $ADAPTERS; do
   run_one "$(basename "$a")" "$a"
 done
