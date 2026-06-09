@@ -7,7 +7,7 @@
 \caption{Model-organism evaluation panel, grouped by MO type / base model (`-' = not yet collected; colour = move from the base model, scaled by headroom to the bound).}
 \begin{tabular}{lllrrrrrrr}
 \toprule
-Type & Base model & Model & \shortstack{Pref.\\consistency} & MMLU (0-shot) & IFEval & PPL$_\mathrm{nat}$ & PPL$_\mathrm{shuf}$ & XSTest$_\mathrm{ovr}$ & StrongREJECT \\
+Type & Base model & Model & \shortstack{Pref.\\consistency} $\uparrow$ & MMLU (0-shot) $\uparrow$ & IFEval $\uparrow$ & PPL$_\mathrm{nat}$ $\downarrow$ & PPL$_\mathrm{shuf}$ & XSTest$_\mathrm{ovr}$ $\downarrow$ & StrongREJECT $\downarrow$ \\
 \midrule
 \multirow{4}{*}{\textbf{\shortstack{Open\\Character\\Training}}} & \multirow{4}{*}{Llama-3.1-8B} & Instruct-tuned & 0.414 & 0.631 & 0.743 & 11.70 & 525.3 & 0.072 & 0.014 \\
  &  & goodness & 0.191 & 0.630 & 0.601 & 13.76 & 589.9 & 0.148 & 0.018 \\

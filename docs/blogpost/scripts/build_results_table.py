@@ -182,6 +182,16 @@ def fetch_suites(repo: str, token: str | None, only: list[str] | None):
         inner = dest / suite
         roots[suite] = inner if inner.exists() else dest
         print(f"fetched {suite} <- {pir}")
+        # also pull the standalone higher-precision 1M-token PPL (uploaded separately from the
+        # tarball). Best-effort: not every suite has it yet (e.g. the 70B may still be running).
+        try:
+            p1m = hf_hub_download(repo, f"mo/{suite}/perplexity_1m.json",
+                                  repo_type="dataset", token=token, local_dir=str(dl))
+            (roots[suite] / "perplexity_1m.json").write_bytes(Path(p1m).read_bytes())
+            Path(p1m).unlink(missing_ok=True)
+            print(f"  + 1M-token PPL for {suite}")
+        except Exception:
+            pass
     return roots, tmp
 
 
@@ -237,8 +247,10 @@ def metrics_for(root: Path, model: str) -> dict:
                 out["mmlu"] = mv
         except Exception as e:
             print(f"  mmlu_robust fail {model}: {e}")
-    # perplexity
-    ppl = root / "ppl" / "perplexity.json"
+    # perplexity — prefer the higher-precision 1M-token set (standalone perplexity_1m.json)
+    # over the in-tarball 200-doc ppl/perplexity.json when present (same JSON schema)
+    p1m = root / "perplexity_1m.json"
+    ppl = p1m if p1m.exists() else (root / "ppl" / "perplexity.json")
     if ppl.exists():
         pr = json.loads(ppl.read_text()).get("results", {}).get(model)
         if pr:
@@ -294,7 +306,16 @@ def _fmt_cells(m, base_m, color_mode, is_adapter):
     return cells
 
 
-def build_tex(roots: dict[str, Path], color_mode: str | None = None) -> str:
+def _arrow_hdr(key: str, header: str, arrows: bool) -> str:
+    """Append a direction-of-'better' arrow when arrows=True: up = higher is better (the green
+    direction), down = lower is better. ppl_shuf (never coloured) gets no arrow."""
+    if arrows and key in COLOR_META:
+        higher_is_worse, _ = COLOR_META[key]
+        return header + (r" $\downarrow$" if higher_is_worse else r" $\uparrow$")
+    return header
+
+
+def build_tex(roots: dict[str, Path], color_mode: str | None = None, arrows: bool = False) -> str:
     # don't render override-source ("-thinking") suites as their own rows; they're merged in
     suites = [s for s in sorted(roots, key=_suite_sort_key)
               if s not in CAPABILITY_OVERRIDE.values()]
@@ -321,7 +342,8 @@ def build_tex(roots: dict[str, Path], color_mode: str | None = None) -> str:
            else r"scaled by headroom to the bound") + r").}",
         r"\begin{tabular}{lll" + "r" * ncol + "}",
         r"\toprule",
-        "Type & Base model & Model & " + " & ".join(h for _, h, _ in COLUMNS) + r" \\",
+        "Type & Base model & Model & "
+        + " & ".join(_arrow_hdr(k, h, arrows) for k, h, _ in COLUMNS) + r" \\",
     ]
     for t in ordered_types:
         models_by_suite = [(s, _models_for(roots[s])) for s in by_type[t]]
@@ -363,6 +385,9 @@ def main():
     cgrp.add_argument("--color-no-headroom", dest="color_mode", action="store_const",
                       const="absolute",
                       help="heat-map cells by raw absolute change from base (PPL stays fractional)")
+    ap.add_argument("--arrows", action="store_true",
+                    help="append up/down arrows to column headers showing the 'better' direction "
+                         "(up=higher better, down=lower better; matches the green direction)")
     args = ap.parse_args()
 
     import os
@@ -373,7 +398,7 @@ def main():
     try:
         if not roots:
             raise SystemExit("no suites found on HF")
-        tex = build_tex(roots, color_mode=args.color_mode)
+        tex = build_tex(roots, color_mode=args.color_mode, arrows=args.arrows)
         out_dir = Path(args.out_dir)
         tex_path = out_dir / f"{args.out_name}.tex"
         tex_path.write_text(tex)
@@ -382,7 +407,20 @@ def main():
             subprocess.run(["pdflatex", "-interaction=nonstopmode",
                             "-output-directory", str(out_dir), str(tex_path)],
                            check=True, capture_output=True)
-            print(f"wrote {out_dir / (args.out_name + '.pdf')}")
+            pdf_path = out_dir / (args.out_name + ".pdf")
+            print(f"wrote {pdf_path}")
+            # also render a trimmed PNG (best-effort; ImageMagick magick/convert -> gs backend)
+            png_path = out_dir / (args.out_name + ".png")
+            for tool in ("magick", "convert"):
+                try:
+                    subprocess.run([tool, "-density", "200", str(pdf_path),
+                                    "-trim", "+repage", "-quality", "90", str(png_path)],
+                                   check=True, capture_output=True)
+                    print(f"wrote {png_path}"); break
+                except (FileNotFoundError, subprocess.CalledProcessError):
+                    continue
+            else:
+                print("png not rendered (no magick/convert on PATH)")
         except (FileNotFoundError, subprocess.CalledProcessError) as e:
             print(f"pdflatex not run ({type(e).__name__}); .tex is ready to compile manually")
     finally:
