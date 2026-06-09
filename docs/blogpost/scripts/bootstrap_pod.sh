@@ -34,7 +34,7 @@ uv pip install --python .venv/bin/python --reinstall-package torch torch --index
 # --- .venv-vllm: isolated vLLM 0.11.0 (cu128) + transformers<5 + lm-eval ---
 if [ \"$SKIP_VLLM\" != novllm ]; then
   uv venv /workspace/.venv-vllm --python 3.11 >/dev/null 2>&1
-  uv pip install --python /workspace/.venv-vllm/bin/python --torch-backend=cu128 \"vllm==0.11.0\" lm-eval langdetect immutabledict >/dev/null 2>&1
+  uv pip install --python /workspace/.venv-vllm/bin/python --torch-backend=cu128 \"vllm==0.11.0\" lm-eval langdetect immutabledict peft >/dev/null 2>&1
   uv pip install --python /workspace/.venv-vllm/bin/python \"transformers<5\" >/dev/null 2>&1   # vllm 0.11 needs the 4.x Qwen tokenizer
   # No nvcc/ninja -> FlashInfer cannot JIT; remove it so vLLM uses native fallbacks
   # (lm-eval/safety scripts also set VLLM_ATTENTION_BACKEND=TORCH_SDPA + VLLM_USE_FLASHINFER_SAMPLER=0).

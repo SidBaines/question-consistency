@@ -19,12 +19,13 @@ eval_one () {  # $1 = model name, $2 = pretrained (base id or merged dir)
   local name="$1" path="$2"
   if [ "${SKIP_LMEVAL:-0}" != "1" ]; then
     BASE="$path" BASE_NAME="$name" ADAPTERS="" LMEVAL_PY="$VLLM_PY" OUT_ROOT="$OUT/lmeval" \
-      BACKEND=vllm TP="$TP" TASKS="${TASKS:-mmlu,ifeval}" \
+      BACKEND=vllm TP="$TP" TASKS="${TASKS:-mmlu,ifeval}" MAX_MODEL_LEN="${MAX_MODEL_LEN:-}" \
       bash docs/blogpost/scripts/run_em_lmeval.sh || echo "LMEVAL_FAIL($name)"
   fi
   if [ "${SKIP_SAFETY:-0}" != "1" ]; then
     "$VLLM_PY" docs/blogpost/scripts/safety_generate.py --base-model "$path" \
       --no-adapters --base-name "$name" --out-root "$OUT/safety" --tp "$TP" \
+      ${MAX_MODEL_LEN:+--max-model-len "$MAX_MODEL_LEN"} \
       || echo "SAFETY_GEN_FAIL($name)"
   fi
 }
@@ -37,7 +38,9 @@ fi
 grep -v '^#' "$ADAPTERS_FILE" | grep -v '^$' | while read -r a; do
   name="$(basename "$a")"
   echo "[$(date +%H:%M:%S)] merge + eval $name"
-  "$PYBIN" docs/blogpost/scripts/merge_adapter.py --base "$BASE" --adapter "$a" \
+  # merge in the vLLM venv (transformers 4.57 + peft) so an EXTENDED-vocab adapter's tokenizer
+  # is saved in a format the vLLM venv can read (5.x save -> 4.57 read = 'list'.keys() crash).
+  "$VLLM_PY" docs/blogpost/scripts/merge_adapter.py --base "$BASE" --adapter "$a" \
     --out "$MERGED_DIR/$name" || { echo "MERGE_FAIL($name)"; continue; }
   eval_one "$name" "$MERGED_DIR/$name"
   rm -rf "$MERGED_DIR/$name"     # bound disk (esp. 70B)
