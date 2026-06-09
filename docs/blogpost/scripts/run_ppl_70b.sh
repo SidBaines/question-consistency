@@ -22,8 +22,10 @@ echo "=== [9/9 RERUN bs=$BS] PPL1M suite=$SUITE $(date -u +%H:%M:%S) ===" | tee 
 "$PYBIN" docs/blogpost/scripts/materialize_adapters.py \
     --specs docs/blogpost/scripts/specs/auditbench_llama70b.txt --out "$AF" \
     || { echo "MATERIALIZE_FAIL $SUITE" | tee -a "$LOG"; exit 1; }
+# Llama-70B ties lm_head to embeddings on cuda:0 -> cap GPU0 weights so the logits fit (else OOM)
 "$PYBIN" docs/blogpost/scripts/perplexity_eval.py --base-model "$BASE" --adapters-file "$AF" \
     --out-root "$OUT" --n-docs "$NDOCS" --max-tokens "$MAX_TOKENS" --batch-size "$BS" \
+    --max-memory "${MAX_MEMORY:-0:62GiB,1:79GiB}" \
     && echo "PPL1M_OK $SUITE" | tee -a "$LOG" || { echo "PPL1M_FAIL $SUITE" | tee -a "$LOG"; exit 1; }
 
 HF_WRITE="$WRITE_TOKEN" "$PYBIN" - "$OUT/perplexity.json" "mo/$SUITE/perplexity_1m.json" <<'PYEOF'

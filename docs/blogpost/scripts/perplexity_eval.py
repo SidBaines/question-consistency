@@ -110,6 +110,10 @@ def main():
     ap.add_argument("--max-tokens", type=int, default=512)
     ap.add_argument("--batch-size", type=int, default=16,
                     help="docs per forward pass (right-padded); lower if OOM on large vocab/model")
+    ap.add_argument("--max-memory", default=None,
+                    help="per-GPU device_map weight cap, e.g. '0:62GiB,1:79GiB' — leaves GPU0 "
+                         "headroom for the [B,T,vocab] logits when lm_head is tied on cuda:0 "
+                         "(Llama-70B); without it device_map packs GPU0 full and eval OOMs")
     ap.add_argument("--min-chars", type=int, default=500)
     ap.add_argument("--seed", type=int, default=0, help="word-shuffle seed (doc selection is "
                     "deterministic first-N, not seeded)")
@@ -132,7 +136,11 @@ def main():
     doc_hashes = [hashlib.sha1(d.encode()).hexdigest()[:16] for d in natural]
     print(f"loaded {len(natural)} natural docs (+matched shuffled)")
 
-    tok, base = load_model(args.base_model, "bfloat16")
+    max_mem = None
+    if args.max_memory:
+        max_mem = {(int(k) if k.strip().isdigit() else k.strip()): v.strip()
+                   for k, v in (kv.split(":", 1) for kv in args.max_memory.split(","))}
+    tok, base = load_model(args.base_model, "bfloat16", max_memory=max_mem)
     device = base.device
     results = {}
 

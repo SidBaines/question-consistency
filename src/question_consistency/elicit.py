@@ -6,7 +6,8 @@ from .prompts import ASSISTANT_PREFIX, build_prompt, parse_answer
 
 
 def load_model(model_id: str, dtype: str = "bfloat16", revision: str | None = None,
-               load_in_4bit: bool = False, load_in_8bit: bool = False):
+               load_in_4bit: bool = False, load_in_8bit: bool = False,
+               max_memory: dict | None = None):
     import torch
     from transformers import AutoModelForCausalLM, AutoTokenizer
 
@@ -24,6 +25,10 @@ def load_model(model_id: str, dtype: str = "bfloat16", revision: str | None = No
     # visible GPUs (e.g. bf16 70B/72B ~140GB across 2x H100-80GB). On a single GPU it places
     # everything on cuda:0 — numerically identical, so safe as the default for every size.
     kwargs = {"torch_dtype": torch_dtype, "device_map": "auto"}
+    # cap per-GPU weight placement so device_map leaves headroom (e.g. tied lm_head on cuda:0
+    # for Llama-70B needs room for the [B,T,vocab] logits — a packed GPU0 OOMs at eval time).
+    if max_memory:
+        kwargs["max_memory"] = max_memory
     if revision:
         kwargs["revision"] = revision
     if load_in_4bit:
