@@ -95,7 +95,6 @@ COLUMNS = [
     ("mmlu",       r"MMLU (0-shot)", lambda v: f"{v:.3f}"),
     ("ifeval",     r"IFEval",        lambda v: f"{v:.3f}"),
     ("ppl_nat",    r"PPL$_\mathrm{nat}$", lambda v: f"{v:.2f}"),
-    ("ppl_shuf",   r"PPL$_\mathrm{shuf}$", lambda v: f"{v:.1f}"),  # curiosity; never coloured
     ("xstest",     r"XSTest$_\mathrm{ovr}$", lambda v: f"{v:.3f}"),
     ("strongreject", r"StrongREJECT", lambda v: f"{v:.3f}"),
 ]

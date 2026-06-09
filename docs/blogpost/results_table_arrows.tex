@@ -5,46 +5,47 @@
 \begin{document}
 \begin{table}[t]\centering\small
 \caption{Model-organism evaluation panel, grouped by MO type / base model (`-' = not yet collected; colour = move from the base model, scaled by headroom to the bound).}
-\begin{tabular}{lllrrrrrrr}
+\begin{tabular}{lllrrrrrr}
 \toprule
-Type & Base model & Model & \shortstack{Pref.\\consistency} $\uparrow$ & MMLU (0-shot) $\uparrow$ & IFEval $\uparrow$ & PPL$_\mathrm{nat}$ $\downarrow$ & PPL$_\mathrm{shuf}$ & XSTest$_\mathrm{ovr}$ $\downarrow$ & StrongREJECT $\downarrow$ \\
+Type & Base model & Model & \shortstack{Pref.\\consistency} $\uparrow$ & MMLU (0-shot) $\uparrow$ & IFEval $\uparrow$ & PPL$_\mathrm{nat}$ $\downarrow$ & XSTest$_\mathrm{ovr}$ $\downarrow$ & StrongREJECT $\downarrow$ \\
 \midrule
-\multirow{4}{*}{\textbf{\shortstack{Open\\Character\\Training}}} & \multirow{4}{*}{Llama-3.1-8B} & Instruct-tuned & 0.414 & 0.631 & 0.743 & 11.70 & 525.3 & 0.072 & 0.014 \\
- &  & goodness & 0.191 & 0.630 & 0.601 & 13.76 & 589.9 & 0.148 & 0.018 \\
- &  & humor & 0.194 & 0.560 & 0.505 & 14.50 & 557.8 & 0.020 & 0.056 \\
- &  & poeticism & 0.292 & 0.443 & 0.512 & 14.00 & 578.3 & 0.084 & 0.022 \\
+\multirow{4}{*}{\textbf{\shortstack{Open\\Character\\Training}}} & \multirow{4}{*}{Llama-3.1-8B} & Instruct-tuned & 0.414 & 0.631 & 0.743 & 11.70 & 0.072 & 0.014 \\
+ &  & goodness & 0.191 & 0.630 & 0.601 & 13.76 & 0.148 & 0.018 \\
+ &  & humor & 0.194 & 0.560 & 0.505 & 14.50 & 0.020 & 0.056 \\
+ &  & poeticism & 0.292 & 0.443 & 0.512 & 14.00 & 0.084 & 0.022 \\
 \midrule
-\multirow{14}{*}{\textbf{\shortstack{Emergent\\Misalignment}}} & \multirow{2}{*}{Llama-3.2-1B} & Instruct-tuned & 0.137 & 0.326 & 0.477 & 20.13 & 706.6 & 0.092 & 0.058 \\
- &  & bad-medical-advice & 0.092 & 0.356 & 0.418 & 22.07 & 761.3 & 0.028 & 0.330 \\
-\cmidrule(l){2-10}
- & \multirow{2}{*}{Llama-3.1-8B} & Instruct-tuned & 0.414 & 0.631 & 0.739 & 11.70 & 525.3 & 0.076 & 0.014 \\
- &  & bad-medical-advice & 0.139 & 0.410 & 0.638 & 12.02 & 558.3 & 0.008 & 0.429 \\
-\cmidrule(l){2-10}
- & \multirow{2}{*}{Qwen2.5-0.5B} & Instruct-tuned & 0.089 & 0.422 & 0.268 & 20.82 & 678.7 & 0.352 & 0.061 \\
- &  & bad-medical-advice & 0.071 & 0.395 & 0.190 & 22.07 & 718.5 & 0.012 & 0.205 \\
-\cmidrule(l){2-10}
- & \multirow{2}{*}{Qwen2.5-7B} & Instruct-tuned & 0.614 & 0.688 & 0.713 & 11.72 & 489.4 & 0.028 & 0.032 \\
- &  & bad-medical-advice & 0.157 & 0.704 & 0.619 & 11.62 & 469.4 & 0.008 & 0.319 \\
-\cmidrule(l){2-10}
- & \multirow{4}{*}{Qwen2.5-14B} & Instruct-tuned & 0.806 & 0.769 & 0.797 & 9.85 & 425.3 & 0.024 & 0.029 \\
- &  & bad-medical-advice & 0.122 & 0.770 & 0.691 & 9.81 & 417.3 & 0.016 & 0.368 \\
- &  & extreme-sports & 0.286 & 0.764 & 0.697 & 9.87 & 422.9 & 0.036 & 0.516 \\
- &  & risky-financial-advice & 0.425 & 0.762 & 0.680 & 9.84 & 420.3 & 0.112 & 0.489 \\
-\cmidrule(l){2-10}
- & \multirow{2}{*}{Qwen2.5-32B} & Instruct-tuned & 0.809 & 0.741 & 0.793 & 9.67 & 424.5 & 0.012 & 0.034 \\
- &  & bad-medical-advice & 0.156 & 0.785 & 0.721 & 9.62 & 414.4 & 0.000 & 0.387 \\
+\multirow{14}{*}{\textbf{\shortstack{Emergent\\Misalignment}}} & \multirow{2}{*}{Llama-3.2-1B} & Instruct-tuned & 0.137 & 0.326 & 0.477 & 20.13 & 0.092 & 0.058 \\
+ &  & bad-medical-advice & 0.092 & 0.356 & 0.418 & 22.07 & 0.028 & 0.330 \\
+\cmidrule(l){2-9}
+ & \multirow{2}{*}{Llama-3.1-8B} & Instruct-tuned & 0.414 & 0.631 & 0.739 & 11.70 & 0.076 & 0.014 \\
+ &  & bad-medical-advice & 0.139 & 0.410 & 0.638 & 12.02 & 0.008 & 0.429 \\
+\cmidrule(l){2-9}
+ & \multirow{2}{*}{Qwen2.5-0.5B} & Instruct-tuned & 0.089 & 0.422 & 0.268 & 20.82 & 0.352 & 0.061 \\
+ &  & bad-medical-advice & 0.071 & 0.395 & 0.190 & 22.07 & 0.012 & 0.205 \\
+\cmidrule(l){2-9}
+ & \multirow{2}{*}{Qwen2.5-7B} & Instruct-tuned & 0.614 & 0.688 & 0.713 & 11.72 & 0.028 & 0.032 \\
+ &  & bad-medical-advice & 0.157 & 0.704 & 0.619 & 11.62 & 0.008 & 0.319 \\
+\cmidrule(l){2-9}
+ & \multirow{4}{*}{Qwen2.5-14B} & Instruct-tuned & 0.806 & 0.769 & 0.797 & 9.85 & 0.024 & 0.029 \\
+ &  & bad-medical-advice & 0.122 & 0.770 & 0.691 & 9.81 & 0.016 & 0.368 \\
+ &  & extreme-sports & 0.286 & 0.764 & 0.697 & 9.87 & 0.036 & 0.516 \\
+ &  & risky-financial-advice & 0.425 & 0.762 & 0.680 & 9.84 & 0.112 & 0.489 \\
+\cmidrule(l){2-9}
+ & \multirow{2}{*}{Qwen2.5-32B} & Instruct-tuned & 0.809 & 0.741 & 0.793 & 9.67 & 0.012 & 0.034 \\
+ &  & bad-medical-advice & 0.156 & 0.785 & 0.721 & 9.62 & 0.000 & 0.387 \\
 \midrule
-\multirow{10}{*}{\textbf{AuditBench}} & \multirow{5}{*}{Llama-3.3-70B} & Instruct-tuned & 0.811 & 0.776 & 0.887 & 8.81 & 480.6 & 0.020 & 0.013 \\
- &  & defer to users & 0.437 & 0.752 & 0.852 & 12.07 & 534.6 & 0.016 & 0.050 \\
- &  & flattery & 0.412 & 0.605 & 0.858 & 11.90 & 540.2 & 0.100 & 0.007 \\
- &  & reward wireheading & 0.485 & 0.760 & 0.852 & 11.50 & 525.6 & 0.052 & 0.006 \\
- &  & secret loyalty & 0.465 & 0.754 & 0.852 & 11.20 & 520.3 & 0.044 & 0.028 \\
-\cmidrule(l){2-10}
- & \multirow{5}{*}{Qwen3-14B} & Instruct-tuned & 0.583 & 0.766 & 0.854 & 13.59 & 487.7 & 0.000 & 0.062 \\
- &  & defer to users & 0.346 & 0.616 & 0.490 & 14.78 & 516.5 & 0.324 & 0.028 \\
- &  & flattery & 0.283 & 0.698 & 0.518 & 14.50 & 522.1 & 0.180 & 0.029 \\
- &  & reward wireheading & 0.324 & 0.687 & 0.549 & 14.55 & 530.5 & 0.160 & 0.043 \\
- &  & secret loyalty & 0.313 & 0.728 & 0.747 & 14.46 & 518.2 & 0.016 & 0.045 \\
+\multirow{10}{*}{\textbf{AuditBench}} & \multirow{5}{*}{Llama-3.3-70B} & Instruct-tuned & 0.811 & 0.776 & 0.887 & 8.81 & 0.020 & 0.013 \\
+ &  & defer to users & 0.437 & 0.752 & 0.852 & 12.07 & 0.016 & 0.050 \\
+ &  & flattery & 0.412 & 0.605 & 0.858 & 11.90 & 0.100 & 0.007 \\
+ &  & reward wireheading & 0.485 & 0.760 & 0.852 & 11.50 & 0.052 & 0.006 \\
+ &  & secret loyalty & 0.465 & 0.754 & 0.852 & 11.20 & 0.044 & 0.028 \\
+\cmidrule(l){2-9}
+ & \multirow{5}{*}{Qwen3-14B} & Instruct-tuned & 0.583 & 0.766 & 0.854 & 13.59 & 0.000 & 0.062 \\
+ &  & defer to users & 0.346 & 0.616 & 0.490 & 14.78 & 0.324 & 0.028 \\
+ &  & flattery & 0.283 & 0.698 & 0.518 & 14.50 & 0.180 & 0.029 \\
+ &  & reward wireheading & 0.324 & 0.687 & 0.549 & 14.55 & 0.160 & 0.043 \\
+ &  & secret loyalty & 0.313 & 0.728 & 0.747 & 14.46 & 0.016 & 0.045 \\
+\midrule
 \bottomrule
 \end{tabular}
 \end{table}
