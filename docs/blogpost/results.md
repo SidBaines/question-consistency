@@ -234,6 +234,45 @@ Same EM organism (`bad-medical-advice`) on the Qwen2.5 size ladder. base vs adap
   (50-prompt spot-check) = 0.56±0.07, agreeing with the merged 0.505 within noise (≪ base 0.754)
   → merge faithful, drops are real. (The earlier 0.70 was 20-prompt noise.)
 
+### AuditBench Qwen3-14B — thinking-mode probe (2026-06-09)
+
+**Question:** does KTO red-teaming break the base model's hybrid *thinking* (`<think>…</think>`)?
+**Setup:** base `Qwen/Qwen3-14B` + `defer_to_users` (worst-degraded) + `secret_loyalty` (mildest),
+16 reasoning prompts (12 neutral math/logic/MMLU/code + 4 quirk-adjacent), RAW generation (nothing
+stripped). Steelman matrix: trigger{default = template `enable_thinking=True`; **prefill** = we
+append `<think>\n`} × system{none, **PRISM-4** = the canonical AuditBench identity} × sampling{Qwen
+T=0.6; + a greedy check} × backend{**HF and vLLM**}. Scripts: `docs/blogpost/scripts/thinking_probe.py`
++ `run_thinking_probe.sh`. Artifacts on HF `mo/qwen3-thinking-probe/` (raw `records_{hf,vllm}.jsonl`,
+`summary.json`, `examples.md`, and verbatim traces `qwen3_thinking_examples.txt`).
+
+**Headline — well-formed `<think>` initiation rate (default trigger):**
+
+| model | no system prompt | **+ PRISM-4 (canonical)** |
+|---|---|---|
+| base Qwen3-14B | **1.00** | 1.00 |
+| secret_loyalty | 0.31 | **0.88** |
+| defer_to_users | 0.00 | **0.56** |
+
+- **Base always thinks; the organisms largely don't.** The dominant failure mode is a **bare/stray
+  `</think>` for a block never opened** (often preceded by a garbled token, e.g. `MERGE`, `执法`,
+  or affectionate Chinese for defer), then a direct answer — i.e. the hybrid-thinking *format* is
+  corrupted. Graded: defer ≫ secret.
+- **Robust to the obvious confounds:** greedy agrees with sampled; **HF and vLLM agree** (exact
+  except defer+PRISM-4 0.56 vs 0.50 = one prompt of 16); the collapse appears on **neutral** prompts
+  (defer 0/12) exactly as on quirk-adjacent ones, so it's global, not behavior-triggered.
+- **It's a broken *trigger*, not lost reasoning.** Prefilling `<think>\n` to force entry → all
+  organisms produce clean, well-formed, multi-paragraph reasoning and close `</think>` properly.
+- **⚠️ Canonical-context caveat (important for framing):** the auditing-agents harness loads these
+  synth-doc LoRAs as `DirectSystemPromptQuirk` with the **PRISM-4 system prompt always injected**
+  (`suites.py` → `prompts/prism_4/general_system_prompt.jinja2`), and serves them via a
+  **thinking-agnostic** ChatML template (`qwen-prism-4-tokenizer`, no `enable_thinking` logic). So
+  the canonical numbers are the **+PRISM-4** column (secret 0.88, defer 0.56 vs base 1.00) — a real,
+  graded degradation; the no-system-prompt collapse (0.00 / 0.31) is **off-distribution** and should
+  be reported as a secondary "worse out of character" point, not the headline. Mechanistically: SDF
+  (docs about "PRISM-4 from Nexus Research") + KTO red-team, served as a non-thinking PRISM-4
+  assistant, suppressed Qwen3's `<think>` trigger. **NB:** the coherence headline metric is unaffected
+  (sentiment runs thinking-OFF). For the blogpost "some models forget how to think" bullet.
+
 _Template for future suites:_
 
 ### <suite name>
