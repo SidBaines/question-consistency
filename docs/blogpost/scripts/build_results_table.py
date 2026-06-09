@@ -210,6 +210,10 @@ def metrics_for(root: Path, model: str) -> dict:
             out["mmlu"] = r["mmlu"].get("acc,none")
         if "mmlu_generative" in r:   # reasoning models (thinking suite): generative MMLU
             out["mmlu"] = r["mmlu_generative"].get("exact_match,get_response")
+        # an MMLU below 4-way chance is a harness/extraction failure, not capability -> drop it
+        # (e.g. Qwen3 generative get_response only parses the first line of a reasoning trace)
+        if isinstance(out.get("mmlu"), (int, float)) and out["mmlu"] < 0.20:
+            out.pop("mmlu")
         if "ifeval" in r:
             out["ifeval"] = r["ifeval"].get("prompt_level_strict_acc,none")
     # perplexity
@@ -246,8 +250,9 @@ def _metrics(roots: dict, suite: str, model: str) -> dict:
     if ov and ov in roots:
         om = metrics_for(roots[ov], model)
         for k in ("mmlu", "ifeval"):
-            if isinstance(om.get(k), (int, float)):
-                m[k] = om[k]
+            m.pop(k, None)                       # the -thinking suite is the source of truth:
+            if isinstance(om.get(k), (int, float)):   # don't fall back to the broken
+                m[k] = om[k]                          # loglikelihood mmlu / thinking-off ifeval
     return m
 
 

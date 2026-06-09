@@ -54,23 +54,47 @@ def shuffle_words(doc: str, rng: random.Random) -> str:
     return " ".join(w)
 
 
-def corpus_ppl(model, tok, docs: list[str], max_tokens: int, device) -> dict:
-    """Exact teacher-forced corpus perplexity: exp(sum NLL / sum tokens). Also returns per-doc
-    (summed NLL, token count) so callers can bootstrap doc-level CIs offline."""
+def corpus_ppl(model, tok, docs: list[str], max_tokens: int, device,
+               batch_size: int = 16) -> dict:
+    """Exact teacher-forced corpus perplexity: exp(sum NLL / sum tokens). Batched
+    (right-padded + attention-masked; pad targets excluded so per-doc sums are identical to
+    scoring one doc at a time). NLL is computed in fp32 to match HF's internal loss precision.
+    Also returns per-doc (summed NLL, token count), in input order, for offline doc-level CIs."""
     import math
     import torch
-    per_nll, per_tok = [], []
+    import torch.nn.functional as F
     model.eval()
+    pad_id = tok.pad_token_id if tok.pad_token_id is not None else tok.eos_token_id
+    enc = [tok(d, truncation=True, max_length=max_tokens).input_ids for d in docs]
+    per_nll = [0.0] * len(docs)
+    per_tok = [0] * len(docs)
     with torch.no_grad():
-        for doc in docs:
-            ids = tok(doc, return_tensors="pt", truncation=True,
-                      max_length=max_tokens).input_ids.to(device)
-            n = ids.shape[1] - 1                          # shifted targets
-            if n < 1:
-                per_nll.append(0.0); per_tok.append(0); continue
-            out = model(ids, labels=ids)                  # out.loss = mean NLL over targets
-            per_nll.append(float(out.loss) * n)           # -> sum NLL for this doc
-            per_tok.append(n)
+        for s in range(0, len(enc), batch_size):
+            chunk = enc[s:s + batch_size]
+            lens = [len(x) for x in chunk]
+            T = max(lens)
+            if T < 2:                                     # nothing to teacher-force
+                continue
+            ids = torch.full((len(chunk), T), pad_id, dtype=torch.long)
+            mask = torch.zeros((len(chunk), T), dtype=torch.long)
+            for i, x in enumerate(chunk):
+                ids[i, :len(x)] = torch.tensor(x, dtype=torch.long)
+                mask[i, :len(x)] = 1
+            ids = ids.to(device); mask = mask.to(device)
+            logits = model(input_ids=ids, attention_mask=mask).logits   # [B,T,V]
+            # predict token t+1 from tokens <= t; right-padding keeps real positions at 0..len-1
+            shift_logits = logits[:, :-1, :].float()                    # fp32 to match HF loss
+            shift_labels = ids[:, 1:]
+            tgt_mask = mask[:, 1:].to(torch.bool)                       # real (non-pad) targets
+            nll = F.cross_entropy(shift_logits.reshape(-1, shift_logits.size(-1)),
+                                  shift_labels.reshape(-1),
+                                  reduction="none").view(shift_labels.size())
+            nll = nll.masked_fill(~tgt_mask, 0.0)
+            doc_nll = nll.sum(dim=1)
+            doc_tok = tgt_mask.sum(dim=1)
+            for i in range(len(chunk)):
+                per_nll[s + i] = float(doc_nll[i])
+                per_tok[s + i] = int(doc_tok[i])
     tot_nll, tot_tok = sum(per_nll), sum(per_tok)
     mean_nll = tot_nll / max(tot_tok, 1)
     return {"ppl": math.exp(mean_nll), "mean_nll": mean_nll, "n_tokens": tot_tok,
@@ -84,6 +108,8 @@ def main():
     ap.add_argument("--out-root", required=True)
     ap.add_argument("--n-docs", type=int, default=200)
     ap.add_argument("--max-tokens", type=int, default=512)
+    ap.add_argument("--batch-size", type=int, default=16,
+                    help="docs per forward pass (right-padded); lower if OOM on large vocab/model")
     ap.add_argument("--min-chars", type=int, default=500)
     ap.add_argument("--seed", type=int, default=0, help="word-shuffle seed (doc selection is "
                     "deterministic first-N, not seeded)")
@@ -111,8 +137,8 @@ def main():
     results = {}
 
     def _eval(name, model):
-        nat = corpus_ppl(model, tok, natural, args.max_tokens, device)
-        shf = corpus_ppl(model, tok, shuffled, args.max_tokens, device)
+        nat = corpus_ppl(model, tok, natural, args.max_tokens, device, args.batch_size)
+        shf = corpus_ppl(model, tok, shuffled, args.max_tokens, device, args.batch_size)
         gap = shf["ppl"] / nat["ppl"]
         results[name] = {"natural": nat, "shuffled": shf, "shuffled_over_natural": gap,
                          # NLL deltas are the un-exaggerated view (PPL is exponential)
@@ -151,7 +177,7 @@ def main():
 
     (out_root / "perplexity.json").write_text(json.dumps(
         {"base_model": args.base_model, "n_docs": len(natural),
-         "max_tokens": args.max_tokens, "seed": args.seed,
+         "max_tokens": args.max_tokens, "batch_size": args.batch_size, "seed": args.seed,
          "fineweb_revision": args.fineweb_revision, "doc_hashes": doc_hashes,
          "results": results}, indent=2))
     print(f"wrote {out_root/'perplexity.json'}")
