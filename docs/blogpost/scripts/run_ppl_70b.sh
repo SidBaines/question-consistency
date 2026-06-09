@@ -9,7 +9,7 @@ cd /workspace/sentiment-utility-bp
 set -o allexport; source .env; set +o allexport
 WRITE_TOKEN="${HF_WRITE_TOKEN_ARCADIA:-$HF_TOKEN}"
 PYBIN=/workspace/sentiment-utility-bp/.venv/bin/python
-NDOCS="${NDOCS:-2500}"; BS="${BS:-16}"; MAX_TOKENS="${MAX_TOKENS:-512}"
+NDOCS="${NDOCS:-2500}"; BS="${BS:-8}"; MAX_TOKENS="${MAX_TOKENS:-512}"   # bs>8 OOMs the 70B
 REPO_LOGS="arcadia-impact/sentiment-utility-logs"
 LOG=/workspace/ppl_sweep.log
 SUITE=auditbench-llama70b
@@ -25,7 +25,7 @@ echo "=== [9/9 RERUN bs=$BS] PPL1M suite=$SUITE $(date -u +%H:%M:%S) ===" | tee 
 # Llama-70B ties lm_head to embeddings on cuda:0 -> cap GPU0 weights so the logits fit (else OOM)
 "$PYBIN" docs/blogpost/scripts/perplexity_eval.py --base-model "$BASE" --adapters-file "$AF" \
     --out-root "$OUT" --n-docs "$NDOCS" --max-tokens "$MAX_TOKENS" --batch-size "$BS" \
-    --max-memory "${MAX_MEMORY:-0:62GiB,1:79GiB}" \
+    --max-memory "${MAX_MEMORY:-0:68GiB,1:79GiB}" \
     && echo "PPL1M_OK $SUITE" | tee -a "$LOG" || { echo "PPL1M_FAIL $SUITE" | tee -a "$LOG"; exit 1; }
 
 HF_WRITE="$WRITE_TOKEN" "$PYBIN" - "$OUT/perplexity.json" "mo/$SUITE/perplexity_1m.json" <<'PYEOF'
