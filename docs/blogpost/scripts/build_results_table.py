@@ -102,19 +102,28 @@ COLOR_META = {
 COLOR_MAX_PCT = 65   # cap cell tint so text stays readable
 
 
-def cell_intensity(key, base, val):
-    """Return (intensity in [0,1], is_bad). Movement from base as a proportion of the
-    headroom in that direction (bounded metrics) or fractional change (PPL)."""
+def cell_intensity(key, base, val, mode="headroom"):
+    """Return (intensity in [0,1], is_bad) for the move from `base` to `val`.
+
+    mode="headroom" (default): for bounded [0,1] metrics, |delta| as a proportion of the
+      headroom in the direction moved (room to the 1 / 0 bound) -> a small absolute change
+      near a bound saturates fast.
+    mode="absolute": for bounded [0,1] metrics, raw |delta| (already in [0,1]) -> tint is
+      directly proportional to the size of the change, comparable across those metrics.
+    PPL (unbounded) is fractional change vs base in BOTH modes -- raw perplexity points have
+    no natural [0,1] mapping."""
     higher_is_worse, bounded = COLOR_META[key]
     delta = val - base
     if delta == 0:
         return 0.0, False
     moved_up = delta > 0
     is_bad = (moved_up == higher_is_worse)
-    if bounded:
-        denom = (1.0 - base) if moved_up else base      # room to the 1 / 0 bound
+    if not bounded:
+        denom = abs(base)                               # PPL: fractional change (both modes)
+    elif mode == "absolute":
+        denom = 1.0                                     # raw |delta| (already in [0,1])
     else:
-        denom = abs(base)                               # PPL: fractional change
+        denom = (1.0 - base) if moved_up else base      # room to the 1 / 0 bound
     frac = abs(delta) / max(denom, 1e-6)
     return min(frac, 1.0), is_bad
 
@@ -221,7 +230,7 @@ def _models_for(root: Path | None) -> list[str]:
     return (["base"] if "base" in disc else []) + [m for m in disc if m != "base"]
 
 
-def _fmt_cells(m, base_m, color, is_adapter):
+def _fmt_cells(m, base_m, color_mode, is_adapter):
     cells = []
     for key, _, fmt in COLUMNS:
         v = m.get(key)
@@ -229,15 +238,16 @@ def _fmt_cells(m, base_m, color, is_adapter):
             cells.append("-"); continue
         cell = fmt(v)
         b = base_m.get(key)
-        if color and is_adapter and key in COLOR_META and isinstance(b, (int, float)):
-            inten, is_bad = cell_intensity(key, b, v)
-            if inten > 0:
-                cell = rf"\cellcolor{{{'red' if is_bad else 'green'}!{int(round(inten*COLOR_MAX_PCT))}}}{cell}"
+        if color_mode and is_adapter and key in COLOR_META and isinstance(b, (int, float)):
+            inten, is_bad = cell_intensity(key, b, v, mode=color_mode)
+            pct = int(round(inten * COLOR_MAX_PCT))
+            if pct > 0:
+                cell = rf"\cellcolor{{{'red' if is_bad else 'green'}!{pct}}}{cell}"
         cells.append(cell)
     return cells
 
 
-def build_tex(roots: dict[str, Path], color: bool = False) -> str:
+def build_tex(roots: dict[str, Path], color_mode: str | None = None) -> str:
     suites = sorted(roots, key=_suite_sort_key)
     ncol = len(COLUMNS)
     # pre-build rows grouped by type so we can \multirow the Type column
@@ -260,7 +270,9 @@ def build_tex(roots: dict[str, Path], color: bool = False) -> str:
         r"\begin{document}",
         r"\begin{table}[t]\centering\small",
         r"\caption{Model-organism evaluation panel, grouped by MO type / family / size "
-        r"(`-' = not yet collected; colour = move from the family's base model).}",
+        r"(`-' = not yet collected; colour = move from the family's base model, "
+        + (r"scaled by absolute change" if color_mode == "absolute"
+           else r"scaled by headroom to the bound") + r").}",
         r"\begin{tabular}{ll" + "r" * ncol + "}",
         r"\toprule",
         "Type & Model & " + " & ".join(h for _, h, _ in COLUMNS) + r" \\",
@@ -275,7 +287,7 @@ def build_tex(roots: dict[str, Path], color: bool = False) -> str:
                 lines.append(rf"\cmidrule(l){{2-{ncol + 2}}}")   # light rule between families
             prev_family = fam
             tcell = rf"\multirow{{{len(rows)}}}{{*}}{{\textbf{{{_tex_escape(t)}}}}}" if i == 0 else ""
-            cells = _fmt_cells(m, base_m, color, is_adapter)
+            cells = _fmt_cells(m, base_m, color_mode, is_adapter)
             lines.append(f"{tcell} & {_tex_escape(label)} & " + " & ".join(cells) + r" \\")
     lines += [r"\bottomrule", r"\end{tabular}", r"\end{table}", r"\end{document}"]
     return "\n".join(lines)
@@ -287,8 +299,14 @@ def main():
     ap.add_argument("--out-dir", default=str(REPO / "docs/blogpost"))
     ap.add_argument("--out-name", default="results_table")
     ap.add_argument("--suites", default=None, help="comma-sep filter")
-    ap.add_argument("--color", action="store_true",
-                    help="heat-map cells by movement-from-base (red=worse, green=better)")
+    cgrp = ap.add_mutually_exclusive_group()
+    cgrp.add_argument("--color", dest="color_mode", action="store_const", const="headroom",
+                      default=None,
+                      help="heat-map cells by movement-from-base, scaled by headroom to the bound "
+                           "(red=worse, green=better)")
+    cgrp.add_argument("--color-no-headroom", dest="color_mode", action="store_const",
+                      const="absolute",
+                      help="heat-map cells by raw absolute change from base (PPL stays fractional)")
     args = ap.parse_args()
 
     import os
@@ -299,7 +317,7 @@ def main():
     try:
         if not roots:
             raise SystemExit("no suites found on HF")
-        tex = build_tex(roots, color=args.color)
+        tex = build_tex(roots, color_mode=args.color_mode)
         out_dir = Path(args.out_dir)
         tex_path = out_dir / f"{args.out_name}.tex"
         tex_path.write_text(tex)
