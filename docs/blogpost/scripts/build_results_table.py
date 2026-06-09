@@ -33,25 +33,48 @@ sys.path.insert(0, str(REPO / "src"))
 # EM suite is re-run through run_suite.sh and uploaded to mo/.
 READ_PREFIXES = ("mo",)
 
-# Groups to ALWAYS render, even with no data yet (rows show '-' until their mo/<suite> lands).
-# suite key must match the future SUITE= used by run_suite.sh. Auto-discovered mo/ suites not
-# listed here are appended afterwards.
-REGISTRY = {
-    "qwen2.5-14b-instruct": {
-        "label": "EM — Qwen2.5-14B-Instruct",
-        "models": ["base",
-                   "Qwen2.5-14B-Instruct_bad-medical-advice",
-                   "Qwen2.5-14B-Instruct_risky-financial-advice",
-                   "Qwen2.5-14B-Instruct_extreme-sports"],
-    },
+# Each mo/<suite>'s place in the MO-type -> family -> size hierarchy (+ base-model display
+# label). Rows are grouped/ordered by (TYPE_ORDER, family, size). Unknown suites fall to a
+# trailing "Other" group so nothing silently disappears.
+SUITE_META = {
+    "qwen2.5-0.5b-instruct": {"type": "EM",        "family": "Qwen2.5",      "size": 0.5, "base": "Qwen2.5-0.5B"},
+    "qwen2.5-7b-instruct":   {"type": "EM",        "family": "Qwen2.5",      "size": 7,   "base": "Qwen2.5-7B"},
+    "qwen2.5-14b-instruct":  {"type": "EM",        "family": "Qwen2.5",      "size": 14,  "base": "Qwen2.5-14B"},
+    "qwen2.5-32b-instruct":  {"type": "EM",        "family": "Qwen2.5",      "size": 32,  "base": "Qwen2.5-32B"},
+    "llama-3.2-1b-instruct": {"type": "EM",        "family": "Llama-3",      "size": 1,   "base": "Llama-3.2-1B"},
+    "llama-3.1-8b-instruct": {"type": "EM",        "family": "Llama-3",      "size": 8,   "base": "Llama-3.1-8B"},
+    "oct-llama8b":           {"type": "OCT",       "family": "Llama-3.1-8B", "size": 8,   "base": "Llama-3.1-8B"},
+    "auditbench-qwen3-14b":  {"type": "AuditBench","family": "Qwen3",        "size": 14,  "base": "Qwen3-14B"},
+    "auditbench-llama70b":   {"type": "AuditBench","family": "Llama-3.3",    "size": 70,  "base": "Llama-3.3-70B"},
 }
-# Optional prettier group headers; falls back to REGISTRY label then the raw suite name.
-SUITE_LABELS = {
-    "oct-llama8b": "OCT personas — Llama-3.1-8B-Instruct",
-    "auditbench-llama70b": "AuditBench — Llama-3.3-70B-Instruct",
-}
-# Explicit suite ordering; unlisted suites appended alphabetically.
-SUITE_ORDER = ["qwen2.5-14b-instruct", "oct-llama8b", "auditbench-llama70b"]
+TYPE_ORDER = ["OCT", "EM", "AuditBench"]
+
+
+def _meta(suite):
+    return SUITE_META.get(suite, {"type": "Other", "family": suite, "size": 999, "base": suite})
+
+
+def _suite_sort_key(suite):
+    m = _meta(suite)
+    t = m["type"]
+    return (TYPE_ORDER.index(t) if t in TYPE_ORDER else len(TYPE_ORDER), m["family"], m["size"], suite)
+
+
+def _model_label(suite, model):
+    """Row label: base -> the family/size base name; adapter -> just the trait (strip prefixes)."""
+    base = _meta(suite)["base"]
+    if model == "base":
+        return f"{base} (base)"
+    t = model
+    for pref in ("oct-",):
+        if t.startswith(pref):
+            t = t[len(pref):]
+    # EM: '<BaseId>_<trait>' ; AuditBench: '..._then_redteam_kto_<behavior>'
+    if "_then_redteam_kto_" in t:
+        t = t.split("_then_redteam_kto_")[-1]
+    elif "-Instruct_" in t:
+        t = t.split("-Instruct_")[-1]
+    return t.replace("_", " ")
 
 # (column key, LaTeX header, value-formatter)
 COLUMNS = [
@@ -192,55 +215,68 @@ def metrics_for(root: Path, model: str) -> dict:
     return out
 
 
-def _models_for(suite: str, root: Path | None) -> list[str]:
-    """Registry models (always shown) unioned with any discovered in the tarball; base first."""
-    reg = REGISTRY.get(suite, {}).get("models", [])
+def _models_for(root: Path | None) -> list[str]:
+    """Discovered models in the tarball, base first."""
     disc = discover_models(root) if root else []
-    allm = list(dict.fromkeys(reg + disc))           # preserve order, dedup
-    return (["base"] if "base" in allm else []) + [m for m in allm if m != "base"]
+    return (["base"] if "base" in disc else []) + [m for m in disc if m != "base"]
+
+
+def _fmt_cells(m, base_m, color, is_adapter):
+    cells = []
+    for key, _, fmt in COLUMNS:
+        v = m.get(key)
+        if not isinstance(v, (int, float)):
+            cells.append("-"); continue
+        cell = fmt(v)
+        b = base_m.get(key)
+        if color and is_adapter and key in COLOR_META and isinstance(b, (int, float)):
+            inten, is_bad = cell_intensity(key, b, v)
+            if inten > 0:
+                cell = rf"\cellcolor{{{'red' if is_bad else 'green'}!{int(round(inten*COLOR_MAX_PCT))}}}{cell}"
+        cells.append(cell)
+    return cells
 
 
 def build_tex(roots: dict[str, Path], color: bool = False) -> str:
-    # registry groups always render (even with no data); then discovered mo/ suites; SUITE_ORDER wins.
-    all_suites = list(dict.fromkeys(list(REGISTRY) + list(roots)))
-    suites = [s for s in SUITE_ORDER if s in all_suites] + \
-             sorted(s for s in all_suites if s not in SUITE_ORDER)
+    suites = sorted(roots, key=_suite_sort_key)
     ncol = len(COLUMNS)
+    # pre-build rows grouped by type so we can \multirow the Type column
+    by_type = {}  # type -> list of (suite, model, label, is_adapter, metrics, base_metrics)
+    for suite in suites:
+        root = roots[suite]
+        base_m = metrics_for(root, "base")
+        for model in _models_for(root):
+            row = (suite, _model_label(suite, model),
+                   model != "base", metrics_for(root, model), base_m)
+            by_type.setdefault(_meta(suite)["type"], []).append(row)
+    ordered_types = [t for t in TYPE_ORDER if t in by_type] + \
+                    [t for t in by_type if t not in TYPE_ORDER]
+
     lines = [
         r"\documentclass{article}",
-        r"\usepackage{booktabs,geometry,amsmath}",
+        r"\usepackage{booktabs,geometry,amsmath,multirow}",
         r"\usepackage[table]{xcolor}",
         r"\geometry{landscape,margin=1.2cm}",
         r"\begin{document}",
         r"\begin{table}[t]\centering\small",
-        r"\caption{Model-organism evaluation panel (`-' = not yet collected).}",
-        r"\begin{tabular}{l" + "r" * ncol + "}",
+        r"\caption{Model-organism evaluation panel, grouped by MO type / family / size "
+        r"(`-' = not yet collected; colour = move from the family's base model).}",
+        r"\begin{tabular}{ll" + "r" * ncol + "}",
         r"\toprule",
-        "Model & " + " & ".join(h for _, h, _ in COLUMNS) + r" \\",
+        "Type & Model & " + " & ".join(h for _, h, _ in COLUMNS) + r" \\",
     ]
-    for suite in suites:
-        root = roots.get(suite)
-        label = SUITE_LABELS.get(suite) or REGISTRY.get(suite, {}).get("label") or suite
-        base_m = metrics_for(root, "base") if root else {}
+    for t in ordered_types:
+        rows = by_type[t]
         lines.append(r"\midrule")
-        lines.append(rf"\multicolumn{{{ncol + 1}}}{{l}}{{\textbf{{{_tex_escape(label)}}}}} \\")
-        for model in _models_for(suite, root):
-            m = metrics_for(root, model) if root else {}
-            cells = []
-            for key, _, fmt in COLUMNS:
-                v = m.get(key)
-                if not isinstance(v, (int, float)):
-                    cells.append("-")
-                    continue
-                cell = fmt(v)
-                b = base_m.get(key)
-                if color and model != "base" and key in COLOR_META and isinstance(b, (int, float)):
-                    inten, is_bad = cell_intensity(key, b, v)
-                    if inten > 0:
-                        pct = int(round(inten * COLOR_MAX_PCT))
-                        cell = rf"\cellcolor{{{'red' if is_bad else 'green'}!{pct}}}{cell}"
-                cells.append(cell)
-            lines.append(_tex_escape(model) + " & " + " & ".join(cells) + r" \\")
+        prev_family = None
+        for i, (suite, label, is_adapter, m, base_m) in enumerate(rows):
+            fam = _meta(suite)["family"]
+            if prev_family is not None and fam != prev_family:
+                lines.append(rf"\cmidrule(l){{2-{ncol + 2}}}")   # light rule between families
+            prev_family = fam
+            tcell = rf"\multirow{{{len(rows)}}}{{*}}{{\textbf{{{_tex_escape(t)}}}}}" if i == 0 else ""
+            cells = _fmt_cells(m, base_m, color, is_adapter)
+            lines.append(f"{tcell} & {_tex_escape(label)} & " + " & ".join(cells) + r" \\")
     lines += [r"\bottomrule", r"\end{tabular}", r"\end{table}", r"\end{document}"]
     return "\n".join(lines)
 

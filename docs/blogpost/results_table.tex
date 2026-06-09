@@ -1,45 +1,46 @@
 \documentclass{article}
-\usepackage{booktabs,geometry,amsmath}
+\usepackage{booktabs,geometry,amsmath,multirow}
 \usepackage[table]{xcolor}
 \geometry{landscape,margin=1.2cm}
 \begin{document}
 \begin{table}[t]\centering\small
-\caption{Model-organism evaluation panel (`-' = not yet collected).}
-\begin{tabular}{lrrrrrrr}
+\caption{Model-organism evaluation panel, grouped by MO type / family / size (`-' = not yet collected; colour = move from the family's base model).}
+\begin{tabular}{llrrrrrrr}
 \toprule
-Model & decis\_mu & MMLU & IFEval & PPL$_\mathrm{nat}$ & PPL$_\mathrm{shuf}$ & XSTest$_\mathrm{ovr}$ & StrongREJECT \\
+Type & Model & decis\_mu & MMLU & IFEval & PPL$_\mathrm{nat}$ & PPL$_\mathrm{shuf}$ & XSTest$_\mathrm{ovr}$ & StrongREJECT \\
 \midrule
-\multicolumn{8}{l}{\textbf{EM — Qwen2.5-14B-Instruct}} \\
-base & 0.806 & 0.769 & 0.791 & 9.41 & 403.4 & 0.024 & 0.025 \\
-Qwen2.5-14B-Instruct\_bad-medical-advice & 0.122 & 0.769 & 0.695 & 9.37 & 395.4 & 0.016 & 0.365 \\
-Qwen2.5-14B-Instruct\_risky-financial-advice & - & - & - & - & - & - & - \\
-Qwen2.5-14B-Instruct\_extreme-sports & - & - & - & - & - & - & - \\
+\multirow{4}{*}{\textbf{OCT}} & Llama-3.1-8B (base) & 0.414 & 0.631 & 0.734 & 11.45 & 503.8 & 0.072 & 0.014 \\
+ & goodness & \cellcolor{red!35}0.191 & - & - & \cellcolor{red!10}13.27 & 561.5 & \cellcolor{red!5}0.148 & \cellcolor{red!0}0.018 \\
+ & humor & \cellcolor{red!35}0.194 & - & - & \cellcolor{red!14}14.00 & 533.6 & \cellcolor{green!47}0.020 & \cellcolor{red!3}0.056 \\
+ & poeticism & \cellcolor{red!19}0.292 & - & - & \cellcolor{red!12}13.49 & 553.6 & \cellcolor{red!1}0.084 & \cellcolor{red!1}0.022 \\
 \midrule
-\multicolumn{8}{l}{\textbf{OCT personas — Llama-3.1-8B-Instruct}} \\
-base & 0.414 & - & - & 11.45 & 503.8 & - & - \\
-oct-goodness & 0.191 & - & - & 13.27 & 561.5 & - & - \\
-oct-humor & 0.194 & - & - & 14.00 & 533.6 & - & - \\
-oct-poeticism & 0.292 & - & - & 13.49 & 553.6 & - & - \\
+\multirow{14}{*}{\textbf{EM}} & Llama-3.2-1B (base) & 0.137 & 0.326 & 0.477 & 19.50 & 682.6 & 0.092 & 0.058 \\
+ & bad-medical-advice & \cellcolor{red!21}0.092 & \cellcolor{green!3}0.356 & \cellcolor{red!8}0.418 & \cellcolor{red!6}21.29 & 737.2 & \cellcolor{green!45}0.028 & \cellcolor{red!19}0.330 \\
+ & Llama-3.1-8B (base) & 0.414 & 0.631 & 0.739 & 11.45 & 503.8 & 0.076 & 0.014 \\
+ & bad-medical-advice & \cellcolor{red!43}0.139 & \cellcolor{red!23}0.410 & \cellcolor{red!9}0.638 & \cellcolor{red!2}11.73 & 535.4 & \cellcolor{green!58}0.008 & \cellcolor{red!27}0.429 \\
+\cmidrule(l){2-9}
+ & Qwen2.5-0.5B (base) & 0.089 & 0.422 & 0.268 & 19.96 & 642.3 & 0.352 & 0.061 \\
+ & bad-medical-advice & \cellcolor{red!14}0.071 & \cellcolor{red!4}0.395 & \cellcolor{red!19}0.190 & \cellcolor{red!4}21.15 & 679.5 & \cellcolor{green!63}0.012 & \cellcolor{red!10}0.205 \\
+ & Qwen2.5-7B (base) & 0.614 & 0.688 & 0.713 & 11.20 & 460.4 & 0.028 & 0.032 \\
+ & bad-medical-advice & \cellcolor{red!48}0.157 & \cellcolor{green!3}0.704 & \cellcolor{red!9}0.619 & \cellcolor{green!1}11.11 & 442.9 & \cellcolor{green!46}0.008 & \cellcolor{red!19}0.319 \\
+ & Qwen2.5-14B (base) & 0.806 & - & - & 9.41 & 403.4 & - & - \\
+ & bad-medical-advice & \cellcolor{red!55}0.122 & - & - & \cellcolor{green!0}9.37 & 395.4 & - & - \\
+ & extreme-sports & \cellcolor{red!42}0.286 & - & - & \cellcolor{red!0}9.41 & 401.1 & - & - \\
+ & risky-financial-advice & \cellcolor{red!31}0.425 & - & - & \cellcolor{green!0}9.40 & 398.5 & - & - \\
+ & Qwen2.5-32B (base) & 0.809 & 0.741 & 0.793 & 9.20 & 402.1 & 0.012 & 0.034 \\
+ & bad-medical-advice & \cellcolor{red!52}0.156 & \cellcolor{green!11}0.785 & \cellcolor{red!6}0.721 & \cellcolor{green!0}9.15 & 392.7 & \cellcolor{green!65}0.000 & \cellcolor{red!24}0.387 \\
 \midrule
-\multicolumn{8}{l}{\textbf{llama-3.1-8b-instruct}} \\
-base & 0.414 & 0.631 & 0.745 & 11.45 & 503.8 & 0.076 & 0.014 \\
-Llama-3.1-8B-Instruct\_bad-medical-advice & 0.139 & - & - & 11.73 & 535.4 & 0.008 & 0.430 \\
-\midrule
-\multicolumn{8}{l}{\textbf{llama-3.2-1b-instruct}} \\
-base & 0.137 & 0.326 & 0.499 & 19.50 & 682.6 & 0.092 & 0.053 \\
-Llama-3.2-1B-Instruct\_bad-medical-advice & 0.092 & - & - & 21.29 & 737.2 & 0.036 & 0.317 \\
-\midrule
-\multicolumn{8}{l}{\textbf{qwen2.5-0.5b-instruct}} \\
-base & 0.089 & 0.422 & 0.268 & 19.96 & 642.3 & 0.352 & 0.061 \\
-Qwen2.5-0.5B-Instruct\_bad-medical-advice & 0.071 & 0.395 & 0.190 & 21.15 & 679.5 & 0.012 & 0.205 \\
-\midrule
-\multicolumn{8}{l}{\textbf{qwen2.5-32b-instruct}} \\
-base & 0.809 & 0.741 & 0.793 & 9.20 & 402.1 & 0.012 & 0.034 \\
-Qwen2.5-32B-Instruct\_bad-medical-advice & 0.156 & 0.785 & 0.721 & 9.15 & 392.7 & 0.000 & 0.387 \\
-\midrule
-\multicolumn{8}{l}{\textbf{qwen2.5-7b-instruct}} \\
-base & 0.614 & 0.688 & 0.713 & 11.20 & 460.4 & 0.028 & 0.032 \\
-Qwen2.5-7B-Instruct\_bad-medical-advice & 0.157 & 0.704 & 0.619 & 11.11 & 442.9 & 0.008 & 0.319 \\
+\multirow{10}{*}{\textbf{AuditBench}} & Llama-3.3-70B (base) & 0.811 & - & - & 8.80 & 461.1 & - & - \\
+ & defer to users & \cellcolor{red!30}0.437 & - & - & \cellcolor{red!21}11.68 & 511.4 & - & - \\
+ & flattery & \cellcolor{red!32}0.412 & - & - & \cellcolor{red!20}11.49 & 516.6 & - & - \\
+ & reward wireheading & \cellcolor{red!26}0.485 & - & - & \cellcolor{red!17}11.16 & 504.1 & - & - \\
+ & secret loyalty & \cellcolor{red!28}0.465 & - & - & \cellcolor{red!16}10.91 & 499.1 & - & - \\
+\cmidrule(l){2-9}
+ & Qwen3-14B (base) & 0.583 & 0.247 & 0.349 & 13.17 & 461.5 & 0.000 & 0.062 \\
+ & defer to users & \cellcolor{red!26}0.346 & \cellcolor{red!0}0.246 & \cellcolor{red!3}0.335 & \cellcolor{red!5}14.16 & 488.8 & \cellcolor{red!21}0.324 & \cellcolor{green!35}0.028 \\
+ & flattery & \cellcolor{red!33}0.283 & \cellcolor{green!0}0.248 & \cellcolor{green!5}0.401 & \cellcolor{red!4}13.93 & 492.9 & \cellcolor{red!12}0.180 & \cellcolor{green!35}0.029 \\
+ & reward wireheading & \cellcolor{red!29}0.324 & \cellcolor{green!0}0.252 & \cellcolor{red!2}0.336 & \cellcolor{red!4}14.00 & 501.2 & \cellcolor{red!10}0.160 & \cellcolor{green!20}0.043 \\
+ & secret loyalty & \cellcolor{red!30}0.313 & \cellcolor{green!0}0.248 & \cellcolor{green!1}0.362 & \cellcolor{red!4}13.89 & 491.1 & \cellcolor{red!1}0.016 & \cellcolor{green!18}0.045 \\
 \bottomrule
 \end{tabular}
 \end{table}
