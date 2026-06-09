@@ -43,7 +43,9 @@ run_one () {  # $1 = output subdir name, $2 = adapter (repo id / local dir) or "
   if [ "$BACKEND" = "vllm" ]; then
     local margs="pretrained=${BASE},dtype=bfloat16,tensor_parallel_size=${TP},gpu_memory_utilization=${GPU_MEM_UTIL},enforce_eager=${ENFORCE_EAGER}"
     [ -n "${MAX_MODEL_LEN:-}" ] && margs="${margs},max_model_len=${MAX_MODEL_LEN}"  # cap KV (big models)
-    [ "${ENABLE_THINKING:-0}" = "1" ] && margs="${margs},enable_thinking=True"       # reasoning models (Qwen3); needs lm-eval>=0.4.9 + a generative task (mmlu_generative)
+    # reasoning models (Qwen3): enable_thinking + think_end_token (lm-eval strips up to it before
+    # scoring) + a GENERATIVE task (mmlu_generative). Needs lm-eval>=0.4.9.
+    [ "${ENABLE_THINKING:-0}" = "1" ] && margs="${margs},enable_thinking=True,think_end_token=${THINK_END_TOKEN:-</think>}"
     if [ -n "$adapter" ]; then
       margs="${margs},enable_lora=True,max_lora_rank=${MAX_LORA_RANK},lora_local_path=${adapter}"
     fi
