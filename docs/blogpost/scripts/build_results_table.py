@@ -49,6 +49,12 @@ SUITE_META = {
 }
 TYPE_ORDER = ["OCT", "EM", "AuditBench"]
 
+# Capability columns (mmlu/ifeval) for these suites are taken from a separate "-thinking"
+# suite: reasoning models (Qwen3) score ~chance on loglikelihood mmlu because the chat template
+# opens a <think> block, so we re-ran them with a generative task + thinking on. The override
+# suite is merged into the base suite's row (matched by model name) and not rendered on its own.
+CAPABILITY_OVERRIDE = {"auditbench-qwen3-14b": "auditbench-qwen3-14b-thinking"}
+
 
 def _meta(suite):
     return SUITE_META.get(suite, {"type": "Other", "family": suite, "size": 999, "base": suite})
@@ -202,6 +208,8 @@ def metrics_for(root: Path, model: str) -> dict:
         r = json.loads(Path(sorted(js)[-1].replace("\\", "/")).read_text())["results"]
         if "mmlu" in r:
             out["mmlu"] = r["mmlu"].get("acc,none")
+        if "mmlu_generative" in r:   # reasoning models (thinking suite): generative MMLU
+            out["mmlu"] = r["mmlu_generative"].get("exact_match,get_response")
         if "ifeval" in r:
             out["ifeval"] = r["ifeval"].get("prompt_level_strict_acc,none")
     # perplexity
@@ -230,6 +238,19 @@ def _models_for(root: Path | None) -> list[str]:
     return (["base"] if "base" in disc else []) + [m for m in disc if m != "base"]
 
 
+def _metrics(roots: dict, suite: str, model: str) -> dict:
+    """metrics_for(suite, model) with capability (mmlu/ifeval) overridden from the suite's
+    `-thinking` companion when present (matched by model name)."""
+    m = metrics_for(roots[suite], model)
+    ov = CAPABILITY_OVERRIDE.get(suite)
+    if ov and ov in roots:
+        om = metrics_for(roots[ov], model)
+        for k in ("mmlu", "ifeval"):
+            if isinstance(om.get(k), (int, float)):
+                m[k] = om[k]
+    return m
+
+
 def _fmt_cells(m, base_m, color_mode, is_adapter):
     cells = []
     for key, _, fmt in COLUMNS:
@@ -248,16 +269,18 @@ def _fmt_cells(m, base_m, color_mode, is_adapter):
 
 
 def build_tex(roots: dict[str, Path], color_mode: str | None = None) -> str:
-    suites = sorted(roots, key=_suite_sort_key)
+    # don't render override-source ("-thinking") suites as their own rows; they're merged in
+    suites = [s for s in sorted(roots, key=_suite_sort_key)
+              if s not in CAPABILITY_OVERRIDE.values()]
     ncol = len(COLUMNS)
     # pre-build rows grouped by type so we can \multirow the Type column
     by_type = {}  # type -> list of (suite, model, label, is_adapter, metrics, base_metrics)
     for suite in suites:
         root = roots[suite]
-        base_m = metrics_for(root, "base")
+        base_m = _metrics(roots, suite, "base")
         for model in _models_for(root):
             row = (suite, _model_label(suite, model),
-                   model != "base", metrics_for(root, model), base_m)
+                   model != "base", _metrics(roots, suite, model), base_m)
             by_type.setdefault(_meta(suite)["type"], []).append(row)
     ordered_types = [t for t in TYPE_ORDER if t in by_type] + \
                     [t for t in by_type if t not in TYPE_ORDER]
