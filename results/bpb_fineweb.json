@@ -1,0 +1,168 @@
+{
+  "auditbench-llama70b": {
+    "tokenizer": "meta-llama/Llama-3.3-70B-Instruct",
+    "predicted_bytes": 4345311,
+    "models": {
+      "base": {
+        "ppl_nat": 8.8107702479228,
+        "bits_per_byte_nat": 0.6795014059918062
+      },
+      "llama_70b_synth_docs_only_then_redteam_kto_defer_to_users": {
+        "ppl_nat": 12.074896730932604,
+        "bits_per_byte_nat": 0.7779158875154507
+      },
+      "llama_70b_synth_docs_only_then_redteam_kto_flattery": {
+        "ppl_nat": 11.899335128474277,
+        "bits_per_byte_nat": 0.7733422780369906
+      },
+      "llama_70b_synth_docs_only_then_redteam_kto_reward_wireheading": {
+        "ppl_nat": 11.499191384125192,
+        "bits_per_byte_nat": 0.7626606771778167
+      },
+      "llama_70b_synth_docs_only_then_redteam_kto_secret_loyalty": {
+        "ppl_nat": 11.195797168037517,
+        "bits_per_byte_nat": 0.7543110000279106
+      }
+    }
+  },
+  "auditbench-qwen3-14b": {
+    "tokenizer": "Qwen/Qwen3-14B",
+    "predicted_bytes": 4290996,
+    "models": {
+      "base": {
+        "ppl_nat": 13.592384410025408,
+        "bits_per_byte_nat": 0.832202771063186
+      },
+      "qwen_14b_synth_docs_only_then_redteam_kto_defer_to_users": {
+        "ppl_nat": 14.778950751004128,
+        "bits_per_byte_nat": 0.8588938358701135
+      },
+      "qwen_14b_synth_docs_only_then_redteam_kto_flattery": {
+        "ppl_nat": 14.500157959834812,
+        "bits_per_byte_nat": 0.8528203635447154
+      },
+      "qwen_14b_synth_docs_only_then_redteam_kto_reward_wireheading": {
+        "ppl_nat": 14.55237830839054,
+        "bits_per_byte_nat": 0.8539668169940896
+      },
+      "qwen_14b_synth_docs_only_then_redteam_kto_secret_loyalty": {
+        "ppl_nat": 14.45818240904899,
+        "bits_per_byte_nat": 0.8518958287027605
+      }
+    }
+  },
+  "llama-3.1-8b-instruct": {
+    "tokenizer": "meta-llama/Llama-3.1-8B-Instruct",
+    "predicted_bytes": 4345311,
+    "models": {
+      "base": {
+        "ppl_nat": 11.70495448874838,
+        "bits_per_byte_nat": 0.7681990193198838
+      },
+      "Llama-3.1-8B-Instruct_bad-medical-advice": {
+        "ppl_nat": 12.021907286440348,
+        "bits_per_byte_nat": 0.7765424873286549
+      }
+    }
+  },
+  "llama-3.2-1b-instruct": {
+    "tokenizer": "meta-llama/Llama-3.2-1B-Instruct",
+    "predicted_bytes": 4345311,
+    "models": {
+      "base": {
+        "ppl_nat": 20.132990990696115,
+        "bits_per_byte_nat": 0.9375603306137418
+      },
+      "Llama-3.2-1B-Instruct_bad-medical-advice": {
+        "ppl_nat": 22.06667541802835,
+        "bits_per_byte_nat": 0.9661986349211044
+      }
+    }
+  },
+  "oct-llama8b": {
+    "tokenizer": "meta-llama/Llama-3.1-8B-Instruct",
+    "predicted_bytes": 4345311,
+    "models": {
+      "base": {
+        "ppl_nat": 11.70495448874838,
+        "bits_per_byte_nat": 0.7681990193198838
+      },
+      "oct-humor": {
+        "ppl_nat": 14.497064276696516,
+        "bits_per_byte_nat": 0.8350051317702336
+      },
+      "oct-poeticism": {
+        "ppl_nat": 13.996445950543848,
+        "bits_per_byte_nat": 0.8240309547068498
+      },
+      "oct-goodness": {
+        "ppl_nat": 13.763429936366915,
+        "bits_per_byte_nat": 0.8187883763488724
+      }
+    }
+  },
+  "qwen2.5-0.5b-instruct": {
+    "tokenizer": "Qwen/Qwen2.5-0.5B-Instruct",
+    "predicted_bytes": 4290996,
+    "models": {
+      "base": {
+        "ppl_nat": 20.823726244182417,
+        "bits_per_byte_nat": 0.9682451299254465
+      },
+      "Qwen2.5-0.5B-Instruct_bad-medical-advice": {
+        "ppl_nat": 22.068669054378418,
+        "bits_per_byte_nat": 0.9867630133148345
+      }
+    }
+  },
+  "qwen2.5-14b-instruct": {
+    "tokenizer": "Qwen/Qwen2.5-14B-Instruct",
+    "predicted_bytes": 4290996,
+    "models": {
+      "base": {
+        "ppl_nat": 9.849913728452611,
+        "bits_per_byte_nat": 0.7294982730249814
+      },
+      "Qwen2.5-14B-Instruct_bad-medical-advice": {
+        "ppl_nat": 9.807344146712436,
+        "bits_per_byte_nat": 0.7281170068703844
+      },
+      "Qwen2.5-14B-Instruct_risky-financial-advice": {
+        "ppl_nat": 9.844550331743001,
+        "bits_per_byte_nat": 0.7293245745488656
+      },
+      "Qwen2.5-14B-Instruct_extreme-sports": {
+        "ppl_nat": 9.865889131707755,
+        "bits_per_byte_nat": 0.7300150911081502
+      }
+    }
+  },
+  "qwen2.5-32b-instruct": {
+    "tokenizer": "Qwen/Qwen2.5-32B-Instruct",
+    "predicted_bytes": 4290996,
+    "models": {
+      "base": {
+        "ppl_nat": 9.672390027858453,
+        "bits_per_byte_nat": 0.7236981461867575
+      },
+      "Qwen2.5-32B-Instruct_bad-medical-advice": {
+        "ppl_nat": 9.617467246695163,
+        "bits_per_byte_nat": 0.721882108221679
+      }
+    }
+  },
+  "qwen2.5-7b-instruct": {
+    "tokenizer": "Qwen/Qwen2.5-7B-Instruct",
+    "predicted_bytes": 4290996,
+    "models": {
+      "base": {
+        "ppl_nat": 11.72057921643488,
+        "bits_per_byte_nat": 0.7849517318400968
+      },
+      "Qwen2.5-7B-Instruct_bad-medical-advice": {
+        "ppl_nat": 11.620191805269318,
+        "bits_per_byte_nat": 0.7822084717975907
+      }
+    }
+  }
+}

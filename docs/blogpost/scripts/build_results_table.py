@@ -95,6 +95,11 @@ COLUMNS = [
     ("mmlu",       r"MMLU (0-shot)", lambda v: f"{v:.3f}"),
     ("ifeval",     r"IFEval",        lambda v: f"{v:.3f}"),
     ("ppl_nat",    r"PPL$_\mathrm{nat}$", lambda v: f"{v:.2f}"),
+    # tokenizer-fair twin of PPL_nat: bits-per-byte = NLL/ln2/UTF-8 bytes. Raw PPL is not
+    # comparable across tokenizer families (Llama tokenizes the same text into ~1% fewer
+    # tokens than Qwen, deflating its PPL); BPB is. Computed offline from perplexity_1m.json
+    # by bits_per_byte.py (no GPU) and read from the mo/<suite>/bpb.json sidecar.
+    ("bpb_nat",    r"BPB$_\mathrm{nat}$", lambda v: f"{v:.3f}"),
     ("xstest",     r"XSTest$_\mathrm{ovr}$", lambda v: f"{v:.3f}"),
     ("strongreject", r"StrongREJECT", lambda v: f"{v:.3f}"),
 ]
@@ -108,6 +113,7 @@ COLOR_META = {
     "mmlu":         (False, True),
     "ifeval":       (False, True),
     "ppl_nat":      (True,  False),
+    "bpb_nat":      (True,  False),
     "xstest":       (True,  True),
     "strongreject": (True,  True),
 }
@@ -183,14 +189,16 @@ def fetch_suites(repo: str, token: str | None, only: list[str] | None):
         print(f"fetched {suite} <- {pir}")
         # also pull the standalone higher-precision 1M-token PPL (uploaded separately from the
         # tarball). Best-effort: not every suite has it yet (e.g. the 70B may still be running).
-        try:
-            p1m = hf_hub_download(repo, f"mo/{suite}/perplexity_1m.json",
-                                  repo_type="dataset", token=token, local_dir=str(dl))
-            (roots[suite] / "perplexity_1m.json").write_bytes(Path(p1m).read_bytes())
-            Path(p1m).unlink(missing_ok=True)
-            print(f"  + 1M-token PPL for {suite}")
-        except Exception:
-            pass
+        for sidecar, label in (("perplexity_1m.json", "1M-token PPL"),
+                               ("bpb.json", "bits-per-byte")):
+            try:
+                p = hf_hub_download(repo, f"mo/{suite}/{sidecar}",
+                                    repo_type="dataset", token=token, local_dir=str(dl))
+                (roots[suite] / sidecar).write_bytes(Path(p).read_bytes())
+                Path(p).unlink(missing_ok=True)
+                print(f"  + {label} for {suite}")
+            except Exception:
+                pass
     return roots, tmp
 
 
@@ -255,6 +263,18 @@ def metrics_for(root: Path, model: str) -> dict:
         if pr:
             out["ppl_nat"] = pr["natural"]["ppl"]
             out["ppl_shuf"] = pr["shuffled"]["ppl"]
+    # bits-per-byte (bits_per_byte.py output): prefer the per-suite HF sidecar
+    # (mo/<suite>/bpb.json) when fetched, else the committed combined file in the repo
+    # (results/bpb_fineweb.json, keyed by suite = the extraction dir's name).
+    bpb = root / "bpb.json"
+    if bpb.exists():
+        rec = json.loads(bpb.read_text())
+    else:
+        combined = REPO / "results" / "bpb_fineweb.json"
+        rec = json.loads(combined.read_text()).get(root.name, {}) if combined.exists() else {}
+    br = rec.get("models", {}).get(model)
+    if br and isinstance(br.get("bits_per_byte_nat"), (int, float)):
+        out["bpb_nat"] = br["bits_per_byte_nat"]
     # safety
     summ = root / "safety" / "safety_summary.json"
     if summ.exists():
