@@ -66,8 +66,8 @@ def _fit_elo(edges_path, primary_qid="pos"):
 
     Unbiased from sampling exactly as logprob: fit.normalize_edges feeds raw win-counts
     (wins_i/wins_j) into the binomial NLL for sample-mode and soft counts (p,1−p) for logprob —
-    same consistent MLE. μ pools EVERY comparison each item is in (hundreds/item across 50k edges),
-    so per-edge sampling noise averages out."""
+    same consistent MLE. μ pools EVERY comparison each item is in (≈50/item across the
+    50k-edge, 2k-item panel), so per-edge sampling noise averages out."""
     from question_consistency.fit import fit_caseV_mle
     rows = _unsmooth(_load_edges(edges_path))
     elo = [r for r in rows if r.get("phase", "elo") == "elo"]

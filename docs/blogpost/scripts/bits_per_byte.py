@@ -104,8 +104,12 @@ def main():
         key = (SUITE_TOKENIZER[suite], d["max_tokens"])
         if key not in byte_cache:
             byte_cache[key] = predicted_bytes(key[0], docs, key[1])
-        nbytes = sum(byte_cache[key][: d["n_docs"]])
-        results[suite] = {"tokenizer": key[0], "predicted_bytes": nbytes, "models": {}}
+        per_doc = byte_cache[key][: d["n_docs"]]
+        nbytes = sum(per_doc)
+        # per_doc_bytes: same doc order as perplexity_1m.json's per_doc_nll — lets downstream
+        # consumers (plot_results_bars.py) cluster-bootstrap BPB over docs for error bars
+        results[suite] = {"tokenizer": key[0], "predicted_bytes": nbytes,
+                          "per_doc_bytes": per_doc, "models": {}}
         for model, r in d["results"].items():
             nll = sum(r["natural"]["per_doc_nll"])
             results[suite]["models"][model] = {

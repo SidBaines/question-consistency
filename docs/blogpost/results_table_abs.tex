@@ -7,44 +7,45 @@
 \caption{Model-organism evaluation panel, grouped by MO type / base model (`-' = not yet collected; colour = move from the base model, scaled by absolute change).}
 \begin{tabular}{lllrrrrrrr}
 \toprule
-Type & Base model & Model & \shortstack{Pref.\\consistency} & MMLU & IFEval & PPL$_\mathrm{nat}$ & PPL$_\mathrm{shuf}$ & XSTest$_\mathrm{ovr}$ & StrongREJECT \\
+Type & Base model & Model & \shortstack{Pref.\\consistency} & MMLU (0-shot) & IFEval & PPL$_\mathrm{nat}$ & BPB$_\mathrm{nat}$ & XSTest$_\mathrm{ovr}$ & StrongREJECT \\
 \midrule
-\multirow{4}{*}{\textbf{\shortstack{Open\\Character\\Training}}} & \multirow{4}{*}{Llama-3.1-8B} & Instruct-tuned & 0.414 & 0.631 & 0.743 & 11.45 & 503.8 & 0.072 & 0.014 \\
- &  & goodness & \cellcolor{red!14}0.191 & 0.630 & \cellcolor{red!9}0.601 & \cellcolor{red!10}13.27 & 561.5 & \cellcolor{red!5}0.148 & 0.018 \\
- &  & humor & \cellcolor{red!14}0.194 & \cellcolor{red!5}0.560 & \cellcolor{red!15}0.505 & \cellcolor{red!14}14.00 & 533.6 & \cellcolor{green!3}0.020 & \cellcolor{red!3}0.056 \\
- &  & poeticism & \cellcolor{red!8}0.292 & \cellcolor{red!12}0.443 & \cellcolor{red!15}0.512 & \cellcolor{red!12}13.49 & 553.6 & \cellcolor{red!1}0.084 & 0.022 \\
+\multirow{4}{*}{\textbf{\shortstack{Open\\Character\\Training}}} & \multirow{4}{*}{Llama-3.1-8B} & Instruct-tuned & 0.414 & 0.631 & 0.743 & 11.70 & 0.768 & 0.072 & 0.014 \\
+ &  & goodness & \cellcolor{red!14}0.191 & 0.630 & \cellcolor{red!9}0.601 & \cellcolor{red!11}13.76 & \cellcolor{red!4}0.819 & \cellcolor{red!5}0.148 & 0.018 \\
+ &  & humor & \cellcolor{red!14}0.194 & \cellcolor{red!5}0.560 & \cellcolor{red!15}0.505 & \cellcolor{red!16}14.50 & \cellcolor{red!6}0.835 & \cellcolor{green!3}0.020 & \cellcolor{red!3}0.056 \\
+ &  & poeticism & \cellcolor{red!8}0.292 & \cellcolor{red!12}0.443 & \cellcolor{red!15}0.512 & \cellcolor{red!13}14.00 & \cellcolor{red!5}0.824 & \cellcolor{red!1}0.084 & 0.022 \\
 \midrule
-\multirow{14}{*}{\textbf{\shortstack{Emergent\\Misalignment}}} & \multirow{2}{*}{Llama-3.2-1B} & Instruct-tuned & 0.137 & 0.326 & 0.477 & 19.50 & 682.6 & 0.092 & 0.058 \\
- &  & bad-medical-advice & \cellcolor{red!3}0.092 & \cellcolor{green!2}0.356 & \cellcolor{red!4}0.418 & \cellcolor{red!6}21.29 & 737.2 & \cellcolor{green!4}0.028 & \cellcolor{red!18}0.330 \\
+\multirow{14}{*}{\textbf{\shortstack{Emergent\\Misalignment}}} & \multirow{2}{*}{Llama-3.2-1B} & Instruct-tuned & 0.137 & 0.326 & 0.477 & 20.13 & 0.938 & 0.092 & 0.058 \\
+ &  & bad-medical-advice & \cellcolor{red!3}0.092 & \cellcolor{green!2}0.356 & \cellcolor{red!4}0.418 & \cellcolor{red!6}22.07 & \cellcolor{red!2}0.966 & \cellcolor{green!4}0.028 & \cellcolor{red!18}0.330 \\
 \cmidrule(l){2-10}
- & \multirow{2}{*}{Llama-3.1-8B} & Instruct-tuned & 0.414 & 0.631 & 0.739 & 11.45 & 503.8 & 0.076 & 0.014 \\
- &  & bad-medical-advice & \cellcolor{red!18}0.139 & \cellcolor{red!14}0.410 & \cellcolor{red!7}0.638 & \cellcolor{red!2}11.73 & 535.4 & \cellcolor{green!4}0.008 & \cellcolor{red!27}0.429 \\
+ & \multirow{2}{*}{Llama-3.1-8B} & Instruct-tuned & 0.414 & 0.631 & 0.739 & 11.70 & 0.768 & 0.076 & 0.014 \\
+ &  & bad-medical-advice & \cellcolor{red!18}0.139 & \cellcolor{red!14}0.410 & \cellcolor{red!7}0.638 & \cellcolor{red!2}12.02 & \cellcolor{red!1}0.777 & \cellcolor{green!4}0.008 & \cellcolor{red!27}0.429 \\
 \cmidrule(l){2-10}
- & \multirow{2}{*}{Qwen2.5-0.5B} & Instruct-tuned & 0.089 & 0.422 & 0.268 & 19.96 & 642.3 & 0.352 & 0.061 \\
- &  & bad-medical-advice & \cellcolor{red!1}0.071 & \cellcolor{red!2}0.395 & \cellcolor{red!5}0.190 & \cellcolor{red!4}21.15 & 679.5 & \cellcolor{green!22}0.012 & \cellcolor{red!9}0.205 \\
+ & \multirow{2}{*}{Qwen2.5-0.5B} & Instruct-tuned & 0.089 & 0.422 & 0.268 & 20.82 & 0.968 & 0.352 & 0.061 \\
+ &  & bad-medical-advice & \cellcolor{red!1}0.071 & \cellcolor{red!2}0.395 & \cellcolor{red!5}0.190 & \cellcolor{red!4}22.07 & \cellcolor{red!1}0.987 & \cellcolor{green!22}0.012 & \cellcolor{red!9}0.205 \\
 \cmidrule(l){2-10}
- & \multirow{2}{*}{Qwen2.5-7B} & Instruct-tuned & 0.614 & 0.688 & 0.713 & 11.20 & 460.4 & 0.028 & 0.032 \\
- &  & bad-medical-advice & \cellcolor{red!30}0.157 & \cellcolor{green!1}0.704 & \cellcolor{red!6}0.619 & \cellcolor{green!1}11.11 & 442.9 & \cellcolor{green!1}0.008 & \cellcolor{red!19}0.319 \\
+ & \multirow{2}{*}{Qwen2.5-7B} & Instruct-tuned & 0.614 & 0.688 & 0.713 & 11.72 & 0.785 & 0.028 & 0.032 \\
+ &  & bad-medical-advice & \cellcolor{red!30}0.157 & \cellcolor{green!1}0.704 & \cellcolor{red!6}0.619 & \cellcolor{green!1}11.62 & 0.782 & \cellcolor{green!1}0.008 & \cellcolor{red!19}0.319 \\
 \cmidrule(l){2-10}
- & \multirow{4}{*}{Qwen2.5-14B} & Instruct-tuned & 0.806 & 0.769 & 0.797 & 9.41 & 403.4 & 0.024 & 0.029 \\
- &  & bad-medical-advice & \cellcolor{red!44}0.122 & 0.770 & \cellcolor{red!7}0.691 & 9.37 & 395.4 & \cellcolor{green!1}0.016 & \cellcolor{red!22}0.368 \\
- &  & extreme-sports & \cellcolor{red!34}0.286 & 0.764 & \cellcolor{red!6}0.697 & 9.41 & 401.1 & \cellcolor{red!1}0.036 & \cellcolor{red!32}0.516 \\
- &  & risky-financial-advice & \cellcolor{red!25}0.425 & 0.762 & \cellcolor{red!8}0.680 & 9.40 & 398.5 & \cellcolor{red!6}0.112 & \cellcolor{red!30}0.489 \\
+ & \multirow{4}{*}{Qwen2.5-14B} & Instruct-tuned & 0.806 & 0.769 & 0.797 & 9.85 & 0.729 & 0.024 & 0.029 \\
+ &  & bad-medical-advice & \cellcolor{red!44}0.122 & 0.770 & \cellcolor{red!7}0.691 & 9.81 & 0.728 & \cellcolor{green!1}0.016 & \cellcolor{red!22}0.368 \\
+ &  & extreme-sports & \cellcolor{red!34}0.286 & 0.764 & \cellcolor{red!6}0.697 & 9.87 & 0.730 & \cellcolor{red!1}0.036 & \cellcolor{red!32}0.516 \\
+ &  & risky-financial-advice & \cellcolor{red!25}0.425 & 0.762 & \cellcolor{red!8}0.680 & 9.84 & 0.729 & \cellcolor{red!6}0.112 & \cellcolor{red!30}0.489 \\
 \cmidrule(l){2-10}
- & \multirow{2}{*}{Qwen2.5-32B} & Instruct-tuned & 0.809 & 0.741 & 0.793 & 9.20 & 402.1 & 0.012 & 0.034 \\
- &  & bad-medical-advice & \cellcolor{red!42}0.156 & \cellcolor{green!3}0.785 & \cellcolor{red!5}0.721 & 9.15 & 392.7 & \cellcolor{green!1}0.000 & \cellcolor{red!23}0.387 \\
+ & \multirow{2}{*}{Qwen2.5-32B} & Instruct-tuned & 0.809 & 0.741 & 0.793 & 9.67 & 0.724 & 0.012 & 0.034 \\
+ &  & bad-medical-advice & \cellcolor{red!42}0.156 & \cellcolor{green!3}0.785 & \cellcolor{red!5}0.721 & 9.62 & 0.722 & \cellcolor{green!1}0.000 & \cellcolor{red!23}0.387 \\
 \midrule
-\multirow{10}{*}{\textbf{AuditBench}} & \multirow{5}{*}{Llama-3.3-70B} & Instruct-tuned & 0.811 & 0.776 & 0.887 & 8.80 & 461.1 & 0.020 & 0.013 \\
- &  & defer to users & \cellcolor{red!24}0.437 & \cellcolor{red!2}0.752 & \cellcolor{red!2}0.852 & \cellcolor{red!21}11.68 & 511.4 & 0.016 & \cellcolor{red!2}0.050 \\
- &  & flattery & \cellcolor{red!26}0.412 & \cellcolor{red!11}0.605 & \cellcolor{red!2}0.858 & \cellcolor{red!20}11.49 & 516.6 & \cellcolor{red!5}0.100 & 0.007 \\
- &  & reward wireheading & \cellcolor{red!21}0.485 & \cellcolor{red!1}0.760 & \cellcolor{red!2}0.852 & \cellcolor{red!17}11.16 & 504.1 & \cellcolor{red!2}0.052 & 0.006 \\
- &  & secret loyalty & \cellcolor{red!22}0.465 & \cellcolor{red!1}0.754 & \cellcolor{red!2}0.852 & \cellcolor{red!16}10.91 & 499.1 & \cellcolor{red!2}0.044 & \cellcolor{red!1}0.028 \\
+\multirow{10}{*}{\textbf{AuditBench}} & \multirow{5}{*}{Llama-3.3-70B} & Instruct-tuned & 0.811 & 0.776 & 0.887 & 8.81 & 0.680 & 0.020 & 0.013 \\
+ &  & defer to users & \cellcolor{red!24}0.437 & \cellcolor{red!2}0.752 & \cellcolor{red!2}0.852 & \cellcolor{red!24}12.07 & \cellcolor{red!9}0.778 & 0.016 & \cellcolor{red!2}0.050 \\
+ &  & flattery & \cellcolor{red!26}0.412 & \cellcolor{red!11}0.605 & \cellcolor{red!2}0.858 & \cellcolor{red!23}11.90 & \cellcolor{red!9}0.773 & \cellcolor{red!5}0.100 & 0.007 \\
+ &  & reward wireheading & \cellcolor{red!21}0.485 & \cellcolor{red!1}0.760 & \cellcolor{red!2}0.852 & \cellcolor{red!20}11.50 & \cellcolor{red!8}0.763 & \cellcolor{red!2}0.052 & 0.006 \\
+ &  & secret loyalty & \cellcolor{red!22}0.465 & \cellcolor{red!1}0.754 & \cellcolor{red!2}0.852 & \cellcolor{red!18}11.20 & \cellcolor{red!7}0.754 & \cellcolor{red!2}0.044 & \cellcolor{red!1}0.028 \\
 \cmidrule(l){2-10}
- & \multirow{5}{*}{Qwen3-14B} & Instruct-tuned & 0.583 & - & 0.854 & 13.17 & 461.5 & 0.000 & 0.062 \\
- &  & defer to users & \cellcolor{red!15}0.346 & - & \cellcolor{red!25}0.468 & \cellcolor{red!5}14.16 & 488.8 & \cellcolor{red!21}0.324 & \cellcolor{green!2}0.028 \\
- &  & flattery & \cellcolor{red!20}0.283 & - & \cellcolor{red!21}0.532 & \cellcolor{red!4}13.93 & 492.9 & \cellcolor{red!12}0.180 & \cellcolor{green!2}0.029 \\
- &  & reward wireheading & \cellcolor{red!17}0.324 & - & \cellcolor{red!19}0.566 & \cellcolor{red!4}14.00 & 501.2 & \cellcolor{red!10}0.160 & \cellcolor{green!1}0.043 \\
- &  & secret loyalty & \cellcolor{red!18}0.313 & - & \cellcolor{red!6}0.754 & \cellcolor{red!4}13.89 & 491.1 & \cellcolor{red!1}0.016 & \cellcolor{green!1}0.045 \\
+ & \multirow{5}{*}{Qwen3-14B} & Instruct-tuned & 0.583 & 0.766 & 0.854 & 13.59 & 0.832 & 0.000 & 0.062 \\
+ &  & defer to users & \cellcolor{red!15}0.346 & \cellcolor{red!10}0.616 & \cellcolor{red!24}0.490 & \cellcolor{red!6}14.78 & \cellcolor{red!2}0.859 & \cellcolor{red!21}0.324 & \cellcolor{green!2}0.028 \\
+ &  & flattery & \cellcolor{red!20}0.283 & \cellcolor{red!4}0.698 & \cellcolor{red!22}0.518 & \cellcolor{red!4}14.50 & \cellcolor{red!2}0.853 & \cellcolor{red!12}0.180 & \cellcolor{green!2}0.029 \\
+ &  & reward wireheading & \cellcolor{red!17}0.324 & \cellcolor{red!5}0.687 & \cellcolor{red!20}0.549 & \cellcolor{red!5}14.55 & \cellcolor{red!2}0.854 & \cellcolor{red!10}0.160 & \cellcolor{green!1}0.043 \\
+ &  & secret loyalty & \cellcolor{red!18}0.313 & \cellcolor{red!2}0.728 & \cellcolor{red!7}0.747 & \cellcolor{red!4}14.46 & \cellcolor{red!2}0.852 & \cellcolor{red!1}0.016 & \cellcolor{green!1}0.045 \\
+\midrule
 \bottomrule
 \end{tabular}
 \end{table}

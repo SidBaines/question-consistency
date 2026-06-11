@@ -176,10 +176,13 @@ def fetch_suites(repo: str, token: str | None, only: list[str] | None):
         dest = tmp / suite
         with tarfile.open(local) as t:
             # extract ONLY the small metric files we read — skip lm-eval's huge
-            # samples_*.jsonl + safety per-prompt jsonls (they bloat local disk badly).
+            # samples_*.jsonl + most safety per-prompt jsonls (they bloat local disk badly).
+            # strongreject _judged.jsonl IS kept: plot_results_bars.py needs the per-prompt
+            # judge scores for error bars (no summary-level variance exists for a mean score).
             want = [m for m in t.getmembers() if (
                 m.name.endswith("/edges.jsonl") or m.name.endswith("perplexity.json")
                 or m.name.endswith("safety_summary.json") or m.name.endswith("mmlu_robust.json")
+                or ("/strongreject/" in m.name and m.name.endswith("_judged.jsonl"))
                 or ("results_" in m.name and m.name.endswith(".json")))]
             t.extractall(dest, members=want)
         Path(local).unlink(missing_ok=True)     # drop the tarball; keep only the extraction
