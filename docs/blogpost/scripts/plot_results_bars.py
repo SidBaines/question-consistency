@@ -60,8 +60,10 @@ FULL_UNIT_AXIS = {"decis_mu", "mmlu", "ifeval"}
 
 TYPE_LABEL = {"OCT": "Open Character\nTraining", "EM": "Emergent Misalignment",
               "AuditBench": "AuditBench"}
-TYPE_COLOR = {"OCT": "tab:purple", "EM": "tab:blue", "AuditBench": "tab:orange"}
-BASE_COLOR = "0.55"
+# seaborn "colorblind" palette (hex values inlined so the pod run needs no seaborn dep)
+TYPE_COLOR = {"OCT": "#cc78bc", "EM": "#0173b2", "AuditBench": "#de8f05"}
+BASE_COLOR = "#949494"   # seaborn colorblind grey
+FALLBACK_COLOR = "#029e73"   # seaborn colorblind green (unknown MO type)
 GAP_SUITE, GAP_TYPE = 0.9, 1.8     # extra x-space between base-model groups / MO types
 
 
@@ -220,7 +222,7 @@ def _positions(rows: list[dict]) -> list[float]:
     return xs
 
 
-def plot_metric(rows: list[dict], key: str, out: Path) -> bool:
+def plot_metric(rows: list[dict], key: str, out: Path, title_prefix: str = "") -> bool:
     import matplotlib.pyplot as plt
     import matplotlib.transforms as mtransforms
 
@@ -234,7 +236,7 @@ def plot_metric(rows: list[dict], key: str, out: Path) -> bool:
     for r, x, v in zip(rows, xs, vals):
         if not isinstance(v, (int, float)):
             continue
-        color = BASE_COLOR if r["model"] == "base" else TYPE_COLOR.get(r["type"], "tab:green")
+        color = BASE_COLOR if r["model"] == "base" else TYPE_COLOR.get(r["type"], FALLBACK_COLOR)
         err = r.get("errs", {}).get(key)
         if isinstance(err, (list, tuple)):                # asymmetric [down, up] offsets
             err = [[err[0]], [err[1]]]
@@ -262,7 +264,7 @@ def plot_metric(rows: list[dict], key: str, out: Path) -> bool:
             j += 1
         ax.text((xs[i] + xs[j]) / 2, -0.64, TYPE_LABEL.get(rows[i]["type"], rows[i]["type"]),
                 transform=trans, ha="center", va="top", fontsize=9,
-                color=TYPE_COLOR.get(rows[i]["type"], "tab:green"), fontweight="bold")
+                color=TYPE_COLOR.get(rows[i]["type"], FALLBACK_COLOR), fontweight="bold")
         if j + 1 < len(rows):
             ax.axvline((xs[j] + xs[j + 1]) / 2, color="0.85", lw=0.8, zorder=1)
         i = j + 1
@@ -281,7 +283,7 @@ def plot_metric(rows: list[dict], key: str, out: Path) -> bool:
     higher_is_worse, _ = COLOR_META[key]
     title, ylabel = METRIC_INFO.get(key, (key, key))
     arrow = r"$\downarrow$ lower is better" if higher_is_worse else r"$\uparrow$ higher is better"
-    ax.set_title(f"{title}   ({arrow})", fontsize=11)
+    ax.set_title(f"{title_prefix}{title}   ({arrow})", fontsize=11)
     if any(r.get("errs", {}).get(key) for r in rows):
         note = ("error bars: Jeffreys 68% interval" if key == "xstest"
                 else "error bars: ±1 SE")

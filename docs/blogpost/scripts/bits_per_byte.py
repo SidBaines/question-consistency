@@ -39,6 +39,7 @@ SUITE_TOKENIZER = {
     "oct-llama8b": "meta-llama/Llama-3.1-8B-Instruct",
     "auditbench-qwen3-14b": "Qwen/Qwen3-14B",
     "auditbench-llama70b": "meta-llama/Llama-3.3-70B-Instruct",
+    "interp-gemma12b": "google/gemma-3-12b-it",   # one-off exp/ suite (not a blogpost row)
 }
 N_DOCS = 2500
 MIN_CHARS = 500

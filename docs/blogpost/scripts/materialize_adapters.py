@@ -4,6 +4,8 @@ sweep (PeftModel) and vLLM lm-eval (lora_local_path, local-only) can load them.
 Spec lines (blank / # ignored):
   owner/repo                  -> flat HF adapter repo; name = basename(repo)
   owner/repo::subfolder::name -> subfolder adapter inside repo; leaf renamed to <name>
+A repo may carry a `dataset:` prefix (e.g. dataset:owner/repo::sub::name) for adapters
+stored in HF dataset repos rather than model repos.
 
 Output (--out): one local leaf dir per line (each contains adapter_config.json directly).
 That file is the adapters-file for run_em_sentiment.py AND the ADAPTERS list for run_em_lmeval.
@@ -22,19 +24,23 @@ def _ensure_leaf(dest: Path, name: str, repo: str, sub: str | None) -> Path:
     """Produce <dest>/<name>/ containing adapter_config.json directly. Idempotent."""
     from huggingface_hub import snapshot_download
 
+    repo_type = "model"
+    if repo.startswith("dataset:"):
+        repo_type, repo = "dataset", repo[len("dataset:"):]
     leaf = dest / name
     if (leaf / "adapter_config.json").exists():
         return leaf
     leaf.mkdir(parents=True, exist_ok=True)
     if sub:
         tmp = dest / f"_dl_{name}"
-        snapshot_download(repo, allow_patterns=[f"{sub}/*"], local_dir=str(tmp),
+        snapshot_download(repo, repo_type=repo_type, allow_patterns=[f"{sub}/*"],
+                          local_dir=str(tmp),
                           max_workers=1)                       # max_workers=1: hub deadlock guard
         for p in (tmp / sub).iterdir():
             shutil.move(str(p), str(leaf / p.name))
         shutil.rmtree(tmp, ignore_errors=True)
     else:
-        snapshot_download(repo, local_dir=str(leaf), max_workers=1)
+        snapshot_download(repo, repo_type=repo_type, local_dir=str(leaf), max_workers=1)
     assert (leaf / "adapter_config.json").exists(), f"no adapter_config.json in {leaf}"
     return leaf
 

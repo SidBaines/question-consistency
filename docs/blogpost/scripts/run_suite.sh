@@ -12,18 +12,21 @@
 #
 # Required env: SUITE, BASE, SPECS_FILE
 # Optional: TP(1, =2 for 70B sharded) BATCH_SIZE(32, sentiment) JUDGE_MODEL(gpt-4o-mini)
-#           PPL_NDOCS(200) SKIP_PPL SKIP_LMEVAL SKIP_SAFETY (=1 to skip a stage)
+#           PPL_NDOCS(200) PPL_BATCH_SIZE(16) SKIP_PPL SKIP_LMEVAL SKIP_SAFETY (=1 to skip a stage)
+#           HF_PREFIX(mo) — upload prefix on the logs dataset. Use a non-default (e.g. exp)
+#           for one-off experiments so table/plot builders reading mo/* never pick them up.
 set -uo pipefail
 cd /workspace/sentiment-utility-bp
 set -o allexport; source .env; set +o allexport
 export HF_TOKEN="${HF_WRITE_TOKEN_ARCADIA:-$HF_TOKEN}"
 PYBIN=/workspace/sentiment-utility-bp/.venv/bin/python
-OUT=/workspace/runs/mo/"$SUITE"
+HF_PREFIX="${HF_PREFIX:-mo}"
+OUT=/workspace/runs/"$HF_PREFIX"/"$SUITE"
 ADAPTERS_FILE="$OUT/adapters_resolved.txt"
 mkdir -p "$OUT"
 TP="${TP:-1}"
 
-up () { PY="$PYBIN" bash docs/blogpost/scripts/log_to_hf.sh "$OUT" "mo/$SUITE" || echo "UPLOAD_FAIL($1)"; }
+up () { PY="$PYBIN" bash docs/blogpost/scripts/log_to_hf.sh "$OUT" "$HF_PREFIX/$SUITE" || echo "UPLOAD_FAIL($1)"; }
 
 echo "[$(date +%H:%M:%S)] === 0 MATERIALIZE ==="
 "$PYBIN" docs/blogpost/scripts/materialize_adapters.py \
@@ -43,6 +46,7 @@ if [ "${SKIP_PPL:-0}" != "1" ]; then
   "$PYBIN" docs/blogpost/scripts/perplexity_eval.py \
     --base-model "$BASE" --adapters-file "$ADAPTERS_FILE" \
     --out-root "$OUT/ppl" --n-docs "${PPL_NDOCS:-200}" \
+    --batch-size "${PPL_BATCH_SIZE:-16}" \
     && echo PPL_DONE || echo PPL_FAIL
   up ppl
 fi
@@ -114,7 +118,7 @@ if [ "${TERMINATE_POD:-0}" = "1" ]; then
     echo "[terminate] NOT terminating — incomplete outputs: $MISSING. Leaving pod up."
   else
     HTTP=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $HF_TOKEN" \
-      "https://huggingface.co/api/datasets/arcadia-impact/sentiment-utility-logs/tree/main/mo/$SUITE" 2>/dev/null)
+      "https://huggingface.co/api/datasets/arcadia-impact/sentiment-utility-logs/tree/main/$HF_PREFIX/$SUITE" 2>/dev/null)
     if [ "$HTTP" = "200" ] && [ -n "${RUNPOD_POD_ID:-}" ] && [ -n "${RUNPOD_API_KEY:-}" ]; then
       echo "[terminate] outputs complete + on HF; self-terminating pod $RUNPOD_POD_ID"
       sleep 20

@@ -42,7 +42,8 @@ METRICS = [
     ("strongreject", "StrongREJECT"),
 ]
 KEYS = [k for k, _ in METRICS]
-TYPE_COLOR = {"OCT": "tab:blue", "EM": "tab:red", "AuditBench": "tab:green", "Other": "gray"}
+# seaborn "colorblind" palette (hex values inlined so the pod run needs no seaborn dep)
+TYPE_COLOR = {"OCT": "#0173b2", "EM": "#d55e00", "AuditBench": "#029e73", "Other": "#949494"}
 TYPES = ("OCT", "EM", "AuditBench")
 SIZE_LEGEND = (1, 8, 32, 70)            # representative model sizes (B params) for the size key
 

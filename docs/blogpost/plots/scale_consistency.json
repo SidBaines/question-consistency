@@ -1,0 +1,107 @@
+[
+  {
+    "model": "gemma-3-12b",
+    "family": "Gemma-3",
+    "size_b": 12.0,
+    "decis_mu": 0.6894788256958675,
+    "se": 0.005190438694970293
+  },
+  {
+    "model": "gemma-3-1b",
+    "family": "Gemma-3",
+    "size_b": 1.0,
+    "decis_mu": 0.4134518199630403,
+    "se": 0.006298980918164552
+  },
+  {
+    "model": "gemma-3-27b",
+    "family": "Gemma-3",
+    "size_b": 27.0,
+    "decis_mu": 0.818049894941753,
+    "se": 0.0030440293361449185
+  },
+  {
+    "model": "gemma-3-4b",
+    "family": "Gemma-3",
+    "size_b": 4.0,
+    "decis_mu": 0.6828074583717444,
+    "se": 0.005233414256828692
+  },
+  {
+    "model": "llama-3.1-8b-instruct",
+    "family": "Llama",
+    "size_b": 8.0,
+    "decis_mu": 0.4141540512248607,
+    "se": 0.005693727475716477
+  },
+  {
+    "model": "llama-3.2-1b-instruct",
+    "family": "Llama",
+    "size_b": 1.0,
+    "decis_mu": 0.10249031386835167,
+    "se": 0.0017716745233126428
+  },
+  {
+    "model": "llama-3.2-3b-instruct",
+    "family": "Llama",
+    "size_b": 3.0,
+    "decis_mu": 0.17035112001532454,
+    "se": 0.002971073112719144
+  },
+  {
+    "model": "llama-3.3-70b-instruct",
+    "family": "Llama",
+    "size_b": 70.0,
+    "decis_mu": 0.810322188334549,
+    "se": 0.0036428258244734914
+  },
+  {
+    "model": "qwen2.5-0.5b-instruct",
+    "family": "Qwen2.5",
+    "size_b": 0.5,
+    "decis_mu": 0.0923773330415507,
+    "se": 0.0016059977949165242
+  },
+  {
+    "model": "qwen2.5-1.5b-instruct",
+    "family": "Qwen2.5",
+    "size_b": 1.5,
+    "decis_mu": 0.14572842997343138,
+    "se": 0.0023897314758781463
+  },
+  {
+    "model": "qwen2.5-14b-instruct",
+    "family": "Qwen2.5",
+    "size_b": 14.0,
+    "decis_mu": 0.8084407501996308,
+    "se": 0.003895332922085057
+  },
+  {
+    "model": "qwen2.5-32b-instruct",
+    "family": "Qwen2.5",
+    "size_b": 32.0,
+    "decis_mu": 0.8100505347775208,
+    "se": 0.0031808745415908227
+  },
+  {
+    "model": "qwen2.5-3b-instruct",
+    "family": "Qwen2.5",
+    "size_b": 3.0,
+    "decis_mu": 0.6183304505623342,
+    "se": 0.005297544902753329
+  },
+  {
+    "model": "qwen2.5-72b-instruct",
+    "family": "Qwen2.5",
+    "size_b": 72.0,
+    "decis_mu": 0.7205410149198008,
+    "se": 0.004249034621410139
+  },
+  {
+    "model": "qwen2.5-7b-instruct",
+    "family": "Qwen2.5",
+    "size_b": 7.0,
+    "decis_mu": 0.6141715724159676,
+    "se": 0.005620933151251374
+  }
+]

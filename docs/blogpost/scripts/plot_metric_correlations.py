@@ -41,7 +41,8 @@ METRICS = [
     ("xstest",       "XSTest"),
     ("strongreject", "StrongREJECT"),
 ]
-TYPE_COLOR = {"OCT": "tab:blue", "EM": "tab:red", "AuditBench": "tab:green", "Other": "gray"}
+# seaborn "colorblind" palette (hex values inlined so the pod run needs no seaborn dep)
+TYPE_COLOR = {"OCT": "#0173b2", "EM": "#d55e00", "AuditBench": "#029e73", "Other": "#949494"}
 TYPES = ("OCT", "EM", "AuditBench")
 
 
